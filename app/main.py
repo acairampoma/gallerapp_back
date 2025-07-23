@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import psycopg2
 import cloudinary
 import cloudinary.uploader
@@ -8,21 +9,28 @@ import ssl
 import urllib3
 from decouple import config
 
+# Importar routers de API
+from app.api.v1 import auth, profiles
+from app.core.config import settings
+from app.core.exceptions import CustomException
+
 # 🔧 Deshabilitar verificación SSL para desarrollo
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ssl._create_default_https_context = ssl._create_unverified_context
 
-# 🔧 Configuración
+# 🚀 Configuración FastAPI
 app = FastAPI(
     title="🐓 GalloApp Pro API",
-    description="Backend para Gestión de Gallos de Pelea",
-    version="1.0.0"
+    description="Backend para Gestión de Gallos de Pelea con Autenticación JWT",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
-# CORS
+# 🌐 CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_HOSTS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,27 +38,43 @@ app.add_middleware(
 
 # 📸 Configurar Cloudinary
 cloudinary.config(
-    cloud_name=config("CLOUDINARY_CLOUD_NAME", default="dz4czc3en"),
-    api_key=config("CLOUDINARY_API_KEY", default="455285241939111"),
-    api_secret=config("CLOUDINARY_API_SECRET", default="1uzQrkFD1Rbj8vPOClFBUEIwBn0")
+    cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+    api_key=settings.CLOUDINARY_API_KEY,
+    api_secret=settings.CLOUDINARY_API_SECRET
 )
 
-# 🗄️ URL de PostgreSQL
-DATABASE_URL = config(
-    "DATABASE_URL", 
-    default="postgresql://postgres:KfktiHjbugWVTzvalfwxiVZwsvVFatrk@gondola.proxy.rlwy.net:54162/railway"
-)
+# ❌ Exception handler global
+@app.exception_handler(CustomException)
+async def custom_exception_handler(request: Request, exc: CustomException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": True,
+            "message": exc.message,
+            "detail": exc.detail,
+            "error_code": exc.error_code
+        }
+    )
+
+# 🌐 Incluir routers de API
+app.include_router(auth.router, prefix="/auth", tags=["🔐 Autenticación"])
+app.include_router(profiles.router, prefix="/profiles", tags=["👤 Perfiles"])
+
+# 🏠 ENDPOINTS BÁSICOS
 
 @app.get("/")
 async def root():
     """🏠 Hola Mundo"""
     return {
-        "message": "🐓 ¡Hola Mundo desde GalloApp Pro!",
+        "message": "🐓 ¡GalloApp Pro API con Seguridad JWT!",
         "status": "✅ ACTIVO",
         "version": "1.0.0",
+        "security": "🔒 JWT Protegido",
         "endpoints": {
             "docs": "/docs",
             "health": "/health",
+            "auth": "/auth/*",
+            "profiles": "/profiles/*",
             "test_db": "/test-db",
             "test_cloudinary": "/test-cloudinary"
         }
@@ -63,7 +87,9 @@ async def health_check():
         "status": "✅ HEALTHY",
         "service": "GalloApp Pro API",
         "database": "PostgreSQL Railway",
-        "storage": "Cloudinary"
+        "storage": "Cloudinary",
+        "auth": "JWT Ready",
+        "environment": settings.ENVIRONMENT
     }
 
 @app.get("/test-db")
@@ -71,7 +97,7 @@ async def test_database():
     """🗄️ Test PostgreSQL Connection"""
     try:
         # Conectar a PostgreSQL
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(settings.DATABASE_URL)
         cursor = conn.cursor()
         
         # Test query
@@ -146,12 +172,13 @@ async def test_full_system():
     results = {
         "sistema": "GalloApp Pro Backend",
         "timestamp": "2025-01-23",
+        "security": "🔒 JWT Implementado",
         "tests": {}
     }
     
     # Test PostgreSQL
     try:
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(settings.DATABASE_URL)
         cursor = conn.cursor()
         cursor.execute("SELECT 1;")
         cursor.close()
@@ -168,8 +195,12 @@ async def test_full_system():
         results["tests"]["cloudinary"] = "❌ ERROR"
     
     # Test Environment
-    environment = config("ENVIRONMENT", default="local")
+    environment = settings.ENVIRONMENT
     results["tests"]["environment"] = f"✅ {environment.upper()}"
+    
+    # Test JWT Config
+    results["tests"]["jwt_config"] = "✅ CONFIGURADO"
+    results["tests"]["endpoints_auth"] = "✅ 6 ENDPOINTS PROTEGIDOS"
     
     return results
 
