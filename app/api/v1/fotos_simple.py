@@ -43,8 +43,8 @@ async def upload_foto_real(
         try:
             upload_result = cloudinary.uploader.upload(
                 file_content,
-                folder=f"galloapp/user_{current_user_id}/gallo_{gallo_id}",
-                public_id=f"gallo_{gallo_id}_{foto.filename.split('.')[0]}",
+                folder=f"user_{current_user_id}",  # user_3/
+                public_id=f"gallo_{gallo_id}_foto1",  # gallo_10_foto1
                 overwrite=True,
                 resource_type="image",
                 format="webp",  # Convertir a WebP para mejor compresion
@@ -115,7 +115,7 @@ async def list_fotos_simple(
     
     try:
         # Buscar fotos en Cloudinary
-        search_expression = f"folder:galloapp/user_{current_user_id}/gallo_{gallo_id}/*"
+        search_expression = f"folder:user_{current_user_id}/* AND public_id:gallo_{gallo_id}_*"
         
         try:
             search_result = cloudinary.Search().expression(search_expression).execute()

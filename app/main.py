@@ -15,7 +15,7 @@ from app.api.v1 import auth, profiles
 try:
     from app.api.v1.gallos_real import router as gallos_router
     from app.api.v1.razas_simple import router as razas_router 
-    from app.api.v1.fotos_simple import router as fotos_router
+    from app.api.v1.fotos_final import router as fotos_router
     genealogia_router = None  # Ya está incluida en gallos_router
 except ImportError as e:
     print(f"Advertencia: No se pudieron importar endpoints limpios: {e}")
