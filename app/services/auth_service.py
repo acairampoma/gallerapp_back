@@ -94,3 +94,22 @@ class AuthService:
         """Obtener perfil del usuario"""
         profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         return profile
+    
+    @staticmethod
+    def change_password(db: Session, user_id: int, current_password: str, new_password: str) -> bool:
+        """Cambiar contraseña del usuario"""
+        
+        # Obtener usuario
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise AuthenticationException("Usuario no encontrado")
+        
+        # Verificar contraseña actual
+        if not SecurityService.verify_password(current_password, user.password_hash):
+            raise AuthenticationException("Contraseña actual incorrecta")
+        
+        # Hashear nueva contraseña y actualizar
+        user.password_hash = SecurityService.get_password_hash(new_password)
+        db.commit()
+        
+        return True

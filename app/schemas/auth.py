@@ -30,6 +30,17 @@ class TokenRefresh(BaseModel):
     """Schema para refresh token"""
     refresh_token: str
 
+class ChangePassword(BaseModel):
+    """Schema para cambio de contraseña"""
+    current_password: str
+    new_password: str
+    
+    @validator('new_password')
+    def validate_new_password(cls, v):
+        if len(v) < 6:
+            raise ValueError('Nueva contraseña debe tener al menos 6 caracteres')
+        return v
+
 # 📤 RESPONSE SCHEMAS
 
 class Token(BaseModel):

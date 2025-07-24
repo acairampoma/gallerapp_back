@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.auth import (
-    UserRegister, UserLogin, TokenRefresh, 
+    UserRegister, UserLogin, TokenRefresh, ChangePassword,
     LoginResponse, RegisterResponse, Token, 
     UserResponse, MessageResponse, LogoutResponse
 )
@@ -127,6 +127,33 @@ async def logout(
         redirect_to="login",
         clear_session=True
     )
+
+@router.put("/change-password", response_model=MessageResponse)
+async def change_password(
+    password_data: ChangePassword,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """🔐 Cambiar contraseña del usuario"""
+    
+    # Cambiar contraseña usando el servicio
+    success = AuthService.change_password(
+        db, 
+        current_user_id, 
+        password_data.current_password, 
+        password_data.new_password
+    )
+    
+    if success:
+        return MessageResponse(
+            message="Contraseña cambiada exitosamente",
+            success=True
+        )
+    else:
+        return MessageResponse(
+            message="Error cambiando contraseña",
+            success=False
+        )
 
 @router.get("/protected-test", response_model=MessageResponse)
 async def protected_test(token_data: dict = Depends(verify_token_dependency)):
