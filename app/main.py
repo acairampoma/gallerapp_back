@@ -15,11 +15,13 @@ from app.api.v1 import auth, profiles
 try:
     from app.api.v1.gallos_simple import router as gallos_router
     from app.api.v1.razas_simple import router as razas_router 
+    from app.api.v1.fotos_simple import router as fotos_router
     genealogia_router = None  # Por ahora deshabilitado
 except ImportError as e:
     print(f"Advertencia: No se pudieron importar endpoints limpios: {e}")
     gallos_router = None
     razas_router = None
+    fotos_router = None
     genealogia_router = None
     
 from app.core.config import settings
@@ -77,6 +79,8 @@ if gallos_router:
     app.include_router(gallos_router, prefix="/api/v1/gallos", tags=["🐓 Gallos (5)"])
 if razas_router:
     app.include_router(razas_router, prefix="/api/v1/razas", tags=["🧬 Razas (2)"])
+if fotos_router:
+    app.include_router(fotos_router, prefix="/api/v1/gallos", tags=["📷 Fotos (3)"])
 if genealogia_router:
     app.include_router(genealogia_router, prefix="/api/v1/gallos", tags=["🌳 Genealogía (2)"])
 else:
@@ -101,6 +105,7 @@ async def root():
             "auth": "/auth/*",
             "profiles": "/profiles/*",
             "gallos": "/api/v1/gallos" if gallos_router else "NO DISPONIBLE",
+            "fotos": "/api/v1/gallos/{id}/foto" if fotos_router else "NO DISPONIBLE",
             "razas": "/api/v1/razas" if razas_router else "NO DISPONIBLE",
             "genealogia": "/api/v1/gallos/{id}/genealogia" if genealogia_router else "NO DISPONIBLE",
             "test_db": "/test-db",
