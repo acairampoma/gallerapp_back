@@ -13,10 +13,10 @@ from decouple import config
 from app.api.v1 import auth, profiles
 # Endpoints limpios de gallos
 try:
-    from app.api.v1.gallos_simple import router as gallos_router
+    from app.api.v1.gallos_real import router as gallos_router
     from app.api.v1.razas_simple import router as razas_router 
     from app.api.v1.fotos_simple import router as fotos_router
-    genealogia_router = None  # Por ahora deshabilitado
+    genealogia_router = None  # Ya está incluida en gallos_router
 except ImportError as e:
     print(f"Advertencia: No se pudieron importar endpoints limpios: {e}")
     gallos_router = None
@@ -83,11 +83,6 @@ if fotos_router:
     app.include_router(fotos_router, prefix="/api/v1/gallos", tags=["📷 Fotos (3)"])
 if genealogia_router:
     app.include_router(genealogia_router, prefix="/api/v1/gallos", tags=["🌳 Genealogía (2)"])
-else:
-    # Endpoint placeholder para genealogía
-    @app.get("/api/v1/gallos/{gallo_id}/genealogia")
-    async def genealogia_placeholder(gallo_id: int, current_user_id: int = Depends(get_current_user_id)):
-        return {"message": f"Genealogía para gallo {gallo_id} - próximamente", "user_id": current_user_id}
 
 # 🏠 ENDPOINTS BÁSICOS
 
@@ -107,7 +102,7 @@ async def root():
             "gallos": "/api/v1/gallos" if gallos_router else "NO DISPONIBLE",
             "fotos": "/api/v1/gallos/{id}/foto" if fotos_router else "NO DISPONIBLE",
             "razas": "/api/v1/razas" if razas_router else "NO DISPONIBLE",
-            "genealogia": "/api/v1/gallos/{id}/genealogia" if genealogia_router else "NO DISPONIBLE",
+            "genealogia": "/api/v1/gallos/{id}/genealogia" if gallos_router else "NO DISPONIBLE",
             "test_db": "/test-db",
             "test_cloudinary": "/test-cloudinary"
         }

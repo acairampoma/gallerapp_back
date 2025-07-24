@@ -1,6 +1,7 @@
 # 📷 app/api/v1/fotos_simple.py - ENDPOINTS DE FOTOS CON CLOUDINARY REAL
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import cloudinary
 import cloudinary.uploader
 from io import BytesIO
@@ -50,6 +51,20 @@ async def upload_foto_real(
                 quality="auto",
                 fetch_format="auto"
             )
+            
+            # GUARDAR URL EN POSTGRESQL
+            update_query = text("""
+                UPDATE gallos 
+                SET foto_principal_url = :foto_url, updated_at = CURRENT_TIMESTAMP
+                WHERE id = :gallo_id AND user_id = :user_id
+            """)
+            
+            db.execute(update_query, {
+                "foto_url": upload_result["secure_url"],
+                "gallo_id": gallo_id,
+                "user_id": current_user_id
+            })
+            db.commit()
             
             return {
                 "success": True,
