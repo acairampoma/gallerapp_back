@@ -11,17 +11,7 @@ from decouple import config
 
 # Importar routers de API
 from app.api.v1 import auth, profiles
-# Endpoints limpios de gallos
-try:
-    from app.api.v1.gallos_clean import router as gallos_router
-    from app.api.v1.razas_clean import router as razas_router 
-    from app.api.v1.genealogia_clean import router as genealogia_router
-except ImportError as e:
-    print(f"Advertencia: No se pudieron importar endpoints limpios: {e}")
-    gallos_router = None
-    razas_router = None
-    genealogia_router = None
-    
+from app.api.v1 import gallos, fotos, genealogia, razas
 from app.core.config import settings
 from app.core.exceptions import CustomException
 
@@ -70,14 +60,10 @@ async def custom_exception_handler(request: Request, exc: CustomException):
 # 🌐 Incluir routers de API
 app.include_router(auth.router, prefix="/auth", tags=["🔐 Autenticación"])
 app.include_router(profiles.router, prefix="/profiles", tags=["👤 Perfiles"])
-
-# 🐓 ENDPOINTS LIMPIOS DE GALLOS (si están disponibles)
-if gallos_router:
-    app.include_router(gallos_router, prefix="/api/v1/gallos", tags=["🐓 Gallos (5)"])
-if razas_router:
-    app.include_router(razas_router, prefix="/api/v1/razas", tags=["🧬 Razas (2)"])
-if genealogia_router:
-    app.include_router(genealogia_router, prefix="/api/v1/gallos", tags=["🌳 Genealogía (2)"])
+app.include_router(gallos.router, prefix="/api/v1/gallos", tags=["🐓 Gallos"])
+app.include_router(fotos.router, prefix="/api/v1/gallos", tags=["📷 Fotos"])
+app.include_router(genealogia.router, prefix="/api/v1/gallos", tags=["🌳 Genealogía"])
+app.include_router(razas.router, prefix="/api/v1/razas", tags=["🧬 Razas"])
 
 # 🏠 ENDPOINTS BÁSICOS
 
@@ -94,9 +80,10 @@ async def root():
             "health": "/health",
             "auth": "/auth/*",
             "profiles": "/profiles/*",
-            "gallos": "/api/v1/gallos" if gallos_router else "NO DISPONIBLE",
-            "razas": "/api/v1/razas" if razas_router else "NO DISPONIBLE",
-            "genealogia": "/api/v1/gallos/{id}/genealogia" if genealogia_router else "NO DISPONIBLE",
+            "gallos": "/api/v1/gallos/*",
+            "fotos": "/api/v1/gallos/{id}/fotos/*",
+            "genealogia": "/api/v1/gallos/{id}/genealogia",
+            "razas": "/api/v1/razas/*",
             "test_db": "/test-db",
             "test_cloudinary": "/test-cloudinary"
         }
