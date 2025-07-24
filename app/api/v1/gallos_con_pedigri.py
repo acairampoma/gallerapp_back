@@ -1,4 +1,4 @@
-# 🐓 app/api/v1/gallos_con_pedigri.py - REGISTRO COMPLETO COMO EL HTML
+# app/api/v1/gallos_con_pedigri.py - REGISTRO COMPLETO COMO EL HTML
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.post("/con-pedigri", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_gallo_con_pedigri(
-    # 🐓 DATOS DEL GALLO PRINCIPAL
+    # DATOS DEL GALLO PRINCIPAL
     nombre: str = Form(...),
     codigo_identificacion: str = Form(...),
     raza_id: Optional[int] = Form(None),
@@ -25,7 +25,7 @@ async def create_gallo_con_pedigri(
     procedencia: Optional[str] = Form(None),
     notas: Optional[str] = Form(None),
     
-    # 👨 DATOS DEL PADRE (OPCIONAL)
+    # DATOS DEL PADRE (OPCIONAL)
     crear_padre: bool = Form(False),
     padre_nombre: Optional[str] = Form(None),
     padre_codigo: Optional[str] = Form(None), 
@@ -35,7 +35,7 @@ async def create_gallo_con_pedigri(
     padre_procedencia: Optional[str] = Form(None),
     padre_notas: Optional[str] = Form(None),
     
-    # 👩 DATOS DE LA MADRE (OPCIONAL)
+    # DATOS DE LA MADRE (OPCIONAL)
     crear_madre: bool = Form(False),
     madre_nombre: Optional[str] = Form(None),
     madre_codigo: Optional[str] = Form(None),
@@ -48,27 +48,27 @@ async def create_gallo_con_pedigri(
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    \"\"\"🏆 CREAR GALLO CON PEDIGRÍ COMPLETO - HASTA 3 REGISTROS\"\"\"
+    """Crear gallo con pedigri completo - hasta 3 registros"""
     
     try:
         registros_creados = []
         padre_id = None
         madre_id = None
         
-        # 👨 PASO 1: CREAR PADRE SI SE SOLICITA
+        # PASO 1: CREAR PADRE SI SE SOLICITA
         if crear_padre and padre_nombre and padre_codigo:
             # Validar código único del padre
-            query_check = text(\"SELECT id FROM gallos WHERE codigo_identificacion = :codigo AND user_id = :user_id\")
-            existing = db.execute(query_check, {\"codigo\": padre_codigo.upper(), \"user_id\": current_user_id}).fetchone()
+            query_check = text("SELECT id FROM gallos WHERE codigo_identificacion = :codigo AND user_id = :user_id")
+            existing = db.execute(query_check, {"codigo": padre_codigo.upper(), "user_id": current_user_id}).fetchone()
             
             if existing:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f\"Ya existe un gallo con el código '{padre_codigo}' (Padre)\"
+                    detail=f"Ya existe un gallo con el código '{padre_codigo}' (Padre)"
                 )
             
             # Insertar padre
-            insert_padre = text(\"\"\"
+            insert_padre = text("""
                 INSERT INTO gallos (
                     user_id, nombre, codigo_identificacion, raza_id, peso, color, 
                     estado, procedencia, notas, created_at, updated_at
@@ -76,44 +76,44 @@ async def create_gallo_con_pedigri(
                     :user_id, :nombre, :codigo, :raza_id, :peso, :color,
                     'padre', :procedencia, :notas, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 ) RETURNING id, created_at
-            \"\"\")
+            """)
             
             result_padre = db.execute(insert_padre, {
-                \"user_id\": current_user_id,
-                \"nombre\": padre_nombre,
-                \"codigo\": padre_codigo.upper(),
-                \"raza_id\": padre_raza_id,
-                \"peso\": padre_peso,
-                \"color\": padre_color,
-                \"procedencia\": padre_procedencia,
-                \"notas\": padre_notas
+                "user_id": current_user_id,
+                "nombre": padre_nombre,
+                "codigo": padre_codigo.upper(),
+                "raza_id": padre_raza_id,
+                "peso": padre_peso,
+                "color": padre_color,
+                "procedencia": padre_procedencia,
+                "notas": padre_notas
             })
             
             padre_row = result_padre.fetchone()
             padre_id = padre_row.id
             
             registros_creados.append({
-                \"tipo\": \"padre\",
-                \"id\": padre_id,
-                \"nombre\": padre_nombre,
-                \"codigo\": padre_codigo.upper(),
-                \"created_at\": padre_row.created_at.isoformat()
+                "tipo": "padre",
+                "id": padre_id,
+                "nombre": padre_nombre,
+                "codigo": padre_codigo.upper(),
+                "created_at": padre_row.created_at.isoformat()
             })
         
-        # 👩 PASO 2: CREAR MADRE SI SE SOLICITA
+        # PASO 2: CREAR MADRE SI SE SOLICITA
         if crear_madre and madre_nombre and madre_codigo:
             # Validar código único de la madre
-            query_check = text(\"SELECT id FROM gallos WHERE codigo_identificacion = :codigo AND user_id = :user_id\")
-            existing = db.execute(query_check, {\"codigo\": madre_codigo.upper(), \"user_id\": current_user_id}).fetchone()
+            query_check = text("SELECT id FROM gallos WHERE codigo_identificacion = :codigo AND user_id = :user_id")
+            existing = db.execute(query_check, {"codigo": madre_codigo.upper(), "user_id": current_user_id}).fetchone()
             
             if existing:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f\"Ya existe un gallo con el código '{madre_codigo}' (Madre)\"
+                    detail=f"Ya existe un gallo con el código '{madre_codigo}' (Madre)"
                 )
             
             # Insertar madre
-            insert_madre = text(\"\"\"
+            insert_madre = text("""
                 INSERT INTO gallos (
                     user_id, nombre, codigo_identificacion, raza_id, peso, color,
                     estado, procedencia, notas, created_at, updated_at
@@ -121,39 +121,39 @@ async def create_gallo_con_pedigri(
                     :user_id, :nombre, :codigo, :raza_id, :peso, :color,
                     'madre', :procedencia, :notas, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 ) RETURNING id, created_at
-            \"\"\")
+            """)
             
             result_madre = db.execute(insert_madre, {
-                \"user_id\": current_user_id,
-                \"nombre\": madre_nombre,
-                \"codigo\": madre_codigo.upper(),
-                \"raza_id\": madre_raza_id,
-                \"peso\": madre_peso,
-                \"color\": madre_color,
-                \"procedencia\": madre_procedencia,
-                \"notas\": madre_notas
+                "user_id": current_user_id,
+                "nombre": madre_nombre,
+                "codigo": madre_codigo.upper(),
+                "raza_id": madre_raza_id,
+                "peso": madre_peso,
+                "color": madre_color,
+                "procedencia": madre_procedencia,
+                "notas": madre_notas
             })
             
             madre_row = result_madre.fetchone()
             madre_id = madre_row.id
             
             registros_creados.append({
-                \"tipo\": \"madre\",
-                \"id\": madre_id,
-                \"nombre\": madre_nombre,
-                \"codigo\": madre_codigo.upper(),
-                \"created_at\": madre_row.created_at.isoformat()
+                "tipo": "madre",
+                "id": madre_id,
+                "nombre": madre_nombre,
+                "codigo": madre_codigo.upper(),
+                "created_at": madre_row.created_at.isoformat()
             })
         
-        # 🐓 PASO 3: CREAR GALLO PRINCIPAL CON PADRES
+        # PASO 3: CREAR GALLO PRINCIPAL CON PADRES
         # Validar código único del gallo principal
-        query_check = text(\"SELECT id FROM gallos WHERE codigo_identificacion = :codigo AND user_id = :user_id\")
-        existing = db.execute(query_check, {\"codigo\": codigo_identificacion.upper(), \"user_id\": current_user_id}).fetchone()
+        query_check = text("SELECT id FROM gallos WHERE codigo_identificacion = :codigo AND user_id = :user_id")
+        existing = db.execute(query_check, {"codigo": codigo_identificacion.upper(), "user_id": current_user_id}).fetchone()
         
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f\"Ya existe un gallo con el código '{codigo_identificacion}' (Principal)\"
+                detail=f"Ya existe un gallo con el código '{codigo_identificacion}' (Principal)"
             )
         
         # Procesar fecha
@@ -165,7 +165,7 @@ async def create_gallo_con_pedigri(
                 pass
         
         # Insertar gallo principal CON PADRES
-        insert_gallo = text(\"\"\"
+        insert_gallo = text("""
             INSERT INTO gallos (
                 user_id, nombre, codigo_identificacion, raza_id, fecha_nacimiento,
                 peso, altura, color, estado, procedencia, notas, 
@@ -175,58 +175,58 @@ async def create_gallo_con_pedigri(
                 :peso, :altura, :color, :estado, :procedencia, :notas,
                 :padre_id, :madre_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             ) RETURNING id, created_at
-        \"\"\")
+        """)
         
         result_gallo = db.execute(insert_gallo, {
-            \"user_id\": current_user_id,
-            \"nombre\": nombre,
-            \"codigo\": codigo_identificacion.upper(),
-            \"raza_id\": raza_id,
-            \"fecha_nacimiento\": fecha_nacimiento_parsed,
-            \"peso\": peso,
-            \"altura\": altura,
-            \"color\": color,
-            \"estado\": estado,
-            \"procedencia\": procedencia,
-            \"notas\": notas,
-            \"padre_id\": padre_id,  # ← CONECTADO AL PADRE
-            \"madre_id\": madre_id   # ← CONECTADO A LA MADRE
+            "user_id": current_user_id,
+            "nombre": nombre,
+            "codigo": codigo_identificacion.upper(),
+            "raza_id": raza_id,
+            "fecha_nacimiento": fecha_nacimiento_parsed,
+            "peso": peso,
+            "altura": altura,
+            "color": color,
+            "estado": estado,
+            "procedencia": procedencia,
+            "notas": notas,
+            "padre_id": padre_id,  # CONECTADO AL PADRE
+            "madre_id": madre_id   # CONECTADO A LA MADRE
         })
         
         gallo_row = result_gallo.fetchone()
         gallo_principal_id = gallo_row.id
         
         registros_creados.append({
-            \"tipo\": \"gallo_principal\",
-            \"id\": gallo_principal_id,
-            \"nombre\": nombre,
-            \"codigo\": codigo_identificacion.upper(),
-            \"padre_id\": padre_id,
-            \"madre_id\": madre_id,
-            \"created_at\": gallo_row.created_at.isoformat()
+            "tipo": "gallo_principal",
+            "id": gallo_principal_id,
+            "nombre": nombre,
+            "codigo": codigo_identificacion.upper(),
+            "padre_id": padre_id,
+            "madre_id": madre_id,
+            "created_at": gallo_row.created_at.isoformat()
         })
         
         # Commit todo junto
         db.commit()
         
         return {
-            \"success\": True,
-            \"message\": f\"🏆 PEDIGRÍ COMPLETO CREADO - {len(registros_creados)} REGISTROS\",
-            \"data\": {
-                \"gallo_principal\": {
-                    \"id\": gallo_principal_id,
-                    \"nombre\": nombre,
-                    \"codigo_identificacion\": codigo_identificacion.upper(),
-                    \"padre_id\": padre_id,
-                    \"madre_id\": madre_id,
-                    \"user_id\": current_user_id
+            "success": True,
+            "message": f"PEDIGRI COMPLETO CREADO - {len(registros_creados)} REGISTROS",
+            "data": {
+                "gallo_principal": {
+                    "id": gallo_principal_id,
+                    "nombre": nombre,
+                    "codigo_identificacion": codigo_identificacion.upper(),
+                    "padre_id": padre_id,
+                    "madre_id": madre_id,
+                    "user_id": current_user_id
                 },
-                \"registros_creados\": registros_creados,
-                \"total_registros\": len(registros_creados),
-                \"pedigri_completo\": {
-                    \"tiene_padre\": padre_id is not None,
-                    \"tiene_madre\": madre_id is not None,
-                    \"generaciones\": 2 if (padre_id and madre_id) else 1
+                "registros_creados": registros_creados,
+                "total_registros": len(registros_creados),
+                "pedigri_completo": {
+                    "tiene_padre": padre_id is not None,
+                    "tiene_madre": madre_id is not None,
+                    "generaciones": 2 if (padre_id and madre_id) else 1
                 }
             }
         }
@@ -237,5 +237,5 @@ async def create_gallo_con_pedigri(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f\"Error creando pedigrí: {str(e)}\"
+            detail=f"Error creando pedigri: {str(e)}"
         )
