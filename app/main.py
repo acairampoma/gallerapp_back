@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import psycopg2
@@ -13,9 +13,9 @@ from decouple import config
 from app.api.v1 import auth, profiles
 # Endpoints limpios de gallos
 try:
-    from app.api.v1.gallos_clean import router as gallos_router
-    from app.api.v1.razas_clean import router as razas_router 
-    from app.api.v1.genealogia_clean import router as genealogia_router
+    from app.api.v1.gallos_simple import router as gallos_router
+    from app.api.v1.razas_simple import router as razas_router 
+    genealogia_router = None  # Por ahora deshabilitado
 except ImportError as e:
     print(f"Advertencia: No se pudieron importar endpoints limpios: {e}")
     gallos_router = None
@@ -24,6 +24,7 @@ except ImportError as e:
     
 from app.core.config import settings
 from app.core.exceptions import CustomException
+from app.core.security import get_current_user_id
 
 # 🔧 Deshabilitar verificación SSL para desarrollo
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -78,6 +79,11 @@ if razas_router:
     app.include_router(razas_router, prefix="/api/v1/razas", tags=["🧬 Razas (2)"])
 if genealogia_router:
     app.include_router(genealogia_router, prefix="/api/v1/gallos", tags=["🌳 Genealogía (2)"])
+else:
+    # Endpoint placeholder para genealogía
+    @app.get("/api/v1/gallos/{gallo_id}/genealogia")
+    async def genealogia_placeholder(gallo_id: int, current_user_id: int = Depends(get_current_user_id)):
+        return {"message": f"Genealogía para gallo {gallo_id} - próximamente", "user_id": current_user_id}
 
 # 🏠 ENDPOINTS BÁSICOS
 
