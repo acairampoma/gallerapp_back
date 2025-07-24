@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
+from .profile import ProfileResponse
 
 # 📝 REQUEST SCHEMAS
 
@@ -54,15 +55,28 @@ class UserResponse(BaseModel):
 class LoginResponse(BaseModel):
     """Schema para respuesta de login exitoso"""
     user: UserResponse
+    profile: Optional[ProfileResponse] = None
     token: Token
     message: str = "Login exitoso"
+    login_success: bool = True
+    redirect_to: str = "home"
 
 class RegisterResponse(BaseModel):
     """Schema para respuesta de registro exitoso"""
     user: UserResponse
+    profile: Optional[ProfileResponse] = None
     message: str = "Usuario registrado exitosamente"
+    login_credentials: Optional[Dict[str, Any]] = None
+    redirect_to: str = "login"
 
 class MessageResponse(BaseModel):
     """Schema para respuestas simples"""
     message: str
     success: bool = True
+
+class LogoutResponse(BaseModel):
+    """Schema para respuesta de logout"""
+    message: str = "Logout exitoso"
+    success: bool = True
+    redirect_to: str = "login"
+    clear_session: bool = True

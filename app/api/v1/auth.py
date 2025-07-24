@@ -4,8 +4,9 @@ from app.database import get_db
 from app.schemas.auth import (
     UserRegister, UserLogin, TokenRefresh, 
     LoginResponse, RegisterResponse, Token, 
-    UserResponse, MessageResponse
+    UserResponse, MessageResponse, LogoutResponse
 )
+from app.schemas.profile import ProfileResponse
 from app.services.auth_service import AuthService
 from app.core.security import SecurityService, get_current_user_id, verify_token_dependency
 from app.core.config import settings
@@ -14,22 +15,33 @@ router = APIRouter()
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    """🔐 Registrar nuevo usuario"""
+    """🔐 Registrar nuevo usuario con respuesta mejorada"""
     
     # Registrar usuario con perfil
     user = AuthService.register_user(db, user_data)
     
-    # Convertir a response schema
+    # Obtener perfil creado
+    profile = AuthService.get_user_profile(db, user.id)
+    
+    # Convertir a response schemas
     user_response = UserResponse.from_orm(user)
+    profile_response = ProfileResponse.from_orm(profile) if profile else None
     
     return RegisterResponse(
         user=user_response,
-        message=f"Usuario {user.email} registrado exitosamente"
+        profile=profile_response,
+        message=f"Usuario {user.email} registrado exitosamente",
+        login_credentials={
+            "email": user.email,
+            "suggested_login": True,
+            "message": "Credenciales listas para login automático"
+        },
+        redirect_to="login"
     )
 
 @router.post("/login", response_model=LoginResponse)
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    """🔐 Login de usuario"""
+    """🔐 Login de usuario con respuesta mejorada"""
     
     # Autenticar usuario
     user = AuthService.authenticate_user(db, user_data.email, user_data.password)
@@ -41,7 +53,10 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     # Guardar refresh token en BD
     AuthService.update_refresh_token(db, user.id, refresh_token)
     
-    # Crear response
+    # Cargar perfil del usuario
+    profile = AuthService.get_user_profile(db, user.id)
+    
+    # Crear responses
     token_response = Token(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -49,11 +64,15 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     )
     
     user_response = UserResponse.from_orm(user)
+    profile_response = ProfileResponse.from_orm(profile) if profile else None
     
     return LoginResponse(
         user=user_response,
+        profile=profile_response,
         token=token_response,
-        message=f"Bienvenido {user.email}"
+        message=f"Bienvenido {profile.nombre_completo if profile else user.email}",
+        login_success=True,
+        redirect_to="home"
     )
 
 @router.post("/refresh", response_model=Token)
@@ -86,17 +105,28 @@ async def get_current_user(
     user = AuthService.get_user_by_id(db, current_user_id)
     return UserResponse.from_orm(user)
 
-@router.post("/logout", response_model=MessageResponse)
+@router.post("/logout", response_model=LogoutResponse)
 async def logout(
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """🚪 Logout del usuario"""
+    """🚪 Logout del usuario con respuesta mejorada"""
+    
+    # Obtener info del usuario para el mensaje personalizado
+    user = AuthService.get_user_by_id(db, current_user_id)
+    profile = AuthService.get_user_profile(db, current_user_id)
     
     # Limpiar refresh token de la BD
     AuthService.update_refresh_token(db, current_user_id, None)
     
-    return MessageResponse(message="Logout exitoso")
+    nombre_usuario = profile.nombre_completo if profile else user.email
+    
+    return LogoutResponse(
+        message=f"Hasta luego, {nombre_usuario}. Sesión cerrada exitosamente",
+        success=True,
+        redirect_to="login",
+        clear_session=True
+    )
 
 @router.get("/protected-test", response_model=MessageResponse)
 async def protected_test(token_data: dict = Depends(verify_token_dependency)):

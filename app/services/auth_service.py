@@ -88,3 +88,9 @@ class AuthService:
         if not user:
             raise AuthenticationException("Refresh token inválido")
         return user
+    
+    @staticmethod
+    def get_user_profile(db: Session, user_id: int) -> Profile:
+        """Obtener perfil del usuario"""
+        profile = db.query(Profile).filter(Profile.user_id == user_id).first()
+        return profile
