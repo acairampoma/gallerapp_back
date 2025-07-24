@@ -2,6 +2,42 @@ from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, Dict, Any
 from datetime import datetime
 from .profile import ProfileResponse
+import re
+
+# 🔐 VALIDADOR DE CONTRASEÑA COMPARTIDO
+def validate_password_strength(password: str) -> str:
+    """Validación robusta de contraseña"""
+    errors = []
+    
+    # Longitud mínima
+    if len(password) < 6:
+        errors.append('debe tener al menos 6 caracteres')
+    
+    # Longitud máxima
+    if len(password) > 128:
+        errors.append('no puede tener más de 128 caracteres')
+    
+    # Al menos una letra
+    if not re.search(r'[a-zA-Z]', password):
+        errors.append('debe contener al menos una letra')
+    
+    # Al menos un número
+    if not re.search(r'\d', password):
+        errors.append('debe contener al menos un número')
+    
+    # No espacios en blanco
+    if ' ' in password:
+        errors.append('no puede contener espacios')
+    
+    # Contraseñas comunes prohibidas
+    weak_passwords = ['123456', '654321', 'password', 'qwerty', '111111', 'abc123']
+    if password.lower() in weak_passwords:
+        errors.append('no puede ser una contraseña común')
+    
+    if errors:
+        raise ValueError(f'La contraseña {', '.join(errors)}')
+    
+    return password
 
 # 📝 REQUEST SCHEMAS
 
@@ -17,9 +53,7 @@ class UserRegister(BaseModel):
 
     @validator('password')
     def validate_password(cls, v):
-        if len(v) < 6:
-            raise ValueError('Password debe tener al menos 6 caracteres')
-        return v
+        return validate_password_strength(v)
 
 class UserLogin(BaseModel):
     """Schema para login de usuario"""
@@ -37,9 +71,7 @@ class ChangePassword(BaseModel):
     
     @validator('new_password')
     def validate_new_password(cls, v):
-        if len(v) < 6:
-            raise ValueError('Nueva contraseña debe tener al menos 6 caracteres')
-        return v
+        return validate_password_strength(v)
 
 # 📤 RESPONSE SCHEMAS
 
