@@ -14,12 +14,14 @@ from app.api.v1 import auth, profiles
 # Endpoints limpios de gallos
 try:
     from app.api.v1.gallos_real import router as gallos_router
+    from app.api.v1.gallos_con_pedigri import router as pedigri_router  # ← NUEVO
     from app.api.v1.razas_simple import router as razas_router 
     from app.api.v1.fotos_final import router as fotos_router
     genealogia_router = None  # Ya está incluida en gallos_router
 except ImportError as e:
     print(f"Advertencia: No se pudieron importar endpoints limpios: {e}")
     gallos_router = None
+    pedigri_router = None
     razas_router = None
     fotos_router = None
     genealogia_router = None
@@ -77,6 +79,8 @@ app.include_router(profiles.router, prefix="/profiles", tags=["👤 Perfiles"])
 # 🐓 ENDPOINTS LIMPIOS DE GALLOS (si están disponibles)
 if gallos_router:
     app.include_router(gallos_router, prefix="/api/v1/gallos", tags=["🐓 Gallos (5)"])
+if pedigri_router:
+    app.include_router(pedigri_router, prefix="/api/v1/gallos", tags=["🐓 Gallos (5)"])
 if razas_router:
     app.include_router(razas_router, prefix="/api/v1/razas", tags=["🧬 Razas (2)"])
 if fotos_router:

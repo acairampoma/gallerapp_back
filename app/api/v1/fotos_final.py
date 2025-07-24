@@ -31,11 +31,11 @@ async def upload_foto_estructura_simple(
         # Leer el archivo
         file_content = await foto.read()
         
-        # 📁 ESTRUCTURA SIMPLE: user_3/gallo_10_foto1.webp
+        # 📁 ESTRUCTURA CORRECTA: galloapp/user_X/gallo_Y_foto1.webp
         upload_result = cloudinary.uploader.upload(
             file_content,
-            folder=f"user_{current_user_id}",           # ← user_3/
-            public_id=f"gallo_{gallo_id}_foto1",        # ← gallo_10_foto1
+            folder=f"galloapp/user_{current_user_id}",      # ← galloapp/user_3/
+            public_id=f"gallo_{gallo_id}_foto1",            # ← gallo_10_foto1
             overwrite=True,
             resource_type="image",
             format="webp",
@@ -65,7 +65,7 @@ async def upload_foto_estructura_simple(
                 "cloudinary": {
                     "public_id": upload_result["public_id"],  # user_3/gallo_10_foto1
                     "secure_url": upload_result["secure_url"],
-                    "folder": f"user_{current_user_id}",
+                    "folder": f"galloapp/user_{current_user_id}",
                     "filename": f"gallo_{gallo_id}_foto1.webp",
                     "width": upload_result["width"],
                     "height": upload_result["height"],
@@ -76,7 +76,7 @@ async def upload_foto_estructura_simple(
                     "content_type": foto.content_type,
                     "size_mb": round(foto.size / (1024 * 1024), 2) if foto.size else 0
                 },
-                "estructura": f"user_{current_user_id}/gallo_{gallo_id}_foto1.webp"
+                "estructura": f"galloapp/user_{current_user_id}/gallo_{gallo_id}_foto1.webp"
             }
         }
         
@@ -94,7 +94,7 @@ async def list_fotos_estructura_simple(
     
     try:
         # Buscar fotos del gallo específico en la carpeta del usuario
-        search_expression = f"folder:user_{current_user_id} AND public_id:gallo_{gallo_id}_*"
+        search_expression = f"folder:galloapp/user_{current_user_id} AND public_id:gallo_{gallo_id}_*"
         
         search_result = cloudinary.Search().expression(search_expression).execute()
         
@@ -119,8 +119,8 @@ async def list_fotos_estructura_simple(
                 "user_id": current_user_id,
                 "fotos": fotos,
                 "total_fotos": len(fotos),
-                "estructura": f"user_{current_user_id}/gallo_{gallo_id}_fotoX.webp",
-                "cloudinary_folder": f"user_{current_user_id}"
+                "estructura": f"galloapp/user_{current_user_id}/gallo_{gallo_id}_fotoX.webp",
+                "cloudinary_folder": f"galloapp/user_{current_user_id}"
             }
         }
         
@@ -138,7 +138,7 @@ async def delete_foto_estructura_simple(
     
     try:
         # Construir public_id con estructura simple
-        public_id = f"user_{current_user_id}/gallo_{gallo_id}_foto{foto_numero}"
+        public_id = f"galloapp/user_{current_user_id}/gallo_{gallo_id}_foto{foto_numero}"
         
         # Eliminar de Cloudinary
         delete_result = cloudinary.uploader.destroy(public_id)
