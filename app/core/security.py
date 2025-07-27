@@ -60,7 +60,7 @@ class SecurityService:
             
             # Verificar expiración
             exp = payload.get("exp")
-            if exp is None or datetime.utcnow() > datetime.fromtimestamp(exp):
+            if exp is None or datetime.utcnow() > datetime.utcfromtimestamp(exp):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Token expired"

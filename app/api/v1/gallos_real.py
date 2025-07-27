@@ -1,4 +1,4 @@
-# 🐓 app/api/v1/gallos_real.py - ENDPOINTS REALES CON POSTGRESQL
+# 🐓 app/api/v1/gallos_real.py - ENDPOINTS REALES CON POSTGRESQL Y TÉCNICA ÉPICA EN PUT
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -264,14 +264,38 @@ async def update_gallo_real(
     estado: Optional[str] = Form(None),
     procedencia: Optional[str] = Form(None),
     notas: Optional[str] = Form(None),
+    
+    # 🔥 TÉCNICA ÉPICA: Campos para crear padres al editar
+    crear_padre: bool = Form(False),
+    padre_nombre: Optional[str] = Form(None),
+    padre_codigo: Optional[str] = Form(None),
+    padre_raza_id: Optional[int] = Form(None),
+    padre_color: Optional[str] = Form(None),
+    padre_peso: Optional[float] = Form(None),
+    padre_procedencia: Optional[str] = Form(None),
+    padre_notas: Optional[str] = Form(None),
+    
+    crear_madre: bool = Form(False),
+    madre_nombre: Optional[str] = Form(None),
+    madre_codigo: Optional[str] = Form(None),
+    madre_raza_id: Optional[int] = Form(None),
+    madre_color: Optional[str] = Form(None),
+    madre_peso: Optional[float] = Form(None),
+    madre_procedencia: Optional[str] = Form(None),
+    madre_notas: Optional[str] = Form(None),
+    
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """✏️ Actualizar gallo REAL en PostgreSQL"""
+    """✏️ Actualizar gallo REAL con TÉCNICA ÉPICA para expandir genealogía"""
     
     try:
-        # Verificar que existe
-        check_query = text("SELECT id FROM gallos WHERE id = :gallo_id AND user_id = :user_id")
+        # Verificar que existe y obtener sus datos actuales
+        check_query = text("""
+            SELECT id, nombre, codigo_identificacion, id_gallo_genealogico, padre_id, madre_id 
+            FROM gallos 
+            WHERE id = :gallo_id AND user_id = :user_id
+        """)
         existing = db.execute(check_query, {"gallo_id": gallo_id, "user_id": current_user_id}).fetchone()
         
         if not existing:
@@ -280,7 +304,107 @@ async def update_gallo_real(
                 detail="Gallo no encontrado"
             )
         
-        # Construir update dinámico
+        registros_creados = []
+        nuevo_padre_id = None
+        nueva_madre_id = None
+        
+        # 🔥 TÉCNICA ÉPICA: Si se van a crear padres
+        if (crear_padre or crear_madre) and existing.id_gallo_genealogico:
+            id_gallo_genealogico = existing.id_gallo_genealogico
+            
+            # CREAR PADRE si se solicita y no existe
+            if crear_padre and not existing.padre_id and padre_nombre and padre_codigo:
+                # Validar código único
+                query_check = text("SELECT id FROM gallos WHERE codigo_identificacion = :codigo AND user_id = :user_id")
+                padre_exists = db.execute(query_check, {"codigo": padre_codigo.upper(), "user_id": current_user_id}).fetchone()
+                
+                if padre_exists:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Ya existe un gallo con el código '{padre_codigo}'"
+                    )
+                
+                # Insertar padre con el MISMO id_gallo_genealogico
+                insert_padre = text("""
+                    INSERT INTO gallos (
+                        user_id, nombre, codigo_identificacion, raza_id, peso, color,
+                        estado, procedencia, notas, id_gallo_genealogico, tipo_registro,
+                        created_at, updated_at
+                    ) VALUES (
+                        :user_id, :nombre, :codigo, :raza_id, :peso, :color,
+                        'padre', :procedencia, :notas, :id_gallo_genealogico, 'padre_generado',
+                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    ) RETURNING id
+                """)
+                
+                result_padre = db.execute(insert_padre, {
+                    "user_id": current_user_id,
+                    "nombre": padre_nombre,
+                    "codigo": padre_codigo.upper(),
+                    "raza_id": padre_raza_id,
+                    "peso": padre_peso,
+                    "color": padre_color,
+                    "procedencia": padre_procedencia,
+                    "notas": padre_notas,
+                    "id_gallo_genealogico": id_gallo_genealogico  # 🔥 HEREDA EL ID GENEALÓGICO
+                })
+                
+                nuevo_padre_id = result_padre.fetchone().id
+                registros_creados.append({
+                    "tipo": "padre",
+                    "id": nuevo_padre_id,
+                    "nombre": padre_nombre,
+                    "codigo": padre_codigo.upper(),
+                    "id_gallo_genealogico": id_gallo_genealogico
+                })
+            
+            # CREAR MADRE si se solicita y no existe
+            if crear_madre and not existing.madre_id and madre_nombre and madre_codigo:
+                # Validar código único
+                query_check = text("SELECT id FROM gallos WHERE codigo_identificacion = :codigo AND user_id = :user_id")
+                madre_exists = db.execute(query_check, {"codigo": madre_codigo.upper(), "user_id": current_user_id}).fetchone()
+                
+                if madre_exists:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Ya existe un gallo con el código '{madre_codigo}'"
+                    )
+                
+                # Insertar madre con el MISMO id_gallo_genealogico
+                insert_madre = text("""
+                    INSERT INTO gallos (
+                        user_id, nombre, codigo_identificacion, raza_id, peso, color,
+                        estado, procedencia, notas, id_gallo_genealogico, tipo_registro,
+                        created_at, updated_at
+                    ) VALUES (
+                        :user_id, :nombre, :codigo, :raza_id, :peso, :color,
+                        'madre', :procedencia, :notas, :id_gallo_genealogico, 'madre_generada',
+                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    ) RETURNING id
+                """)
+                
+                result_madre = db.execute(insert_madre, {
+                    "user_id": current_user_id,
+                    "nombre": madre_nombre,
+                    "codigo": madre_codigo.upper(),
+                    "raza_id": madre_raza_id,
+                    "peso": madre_peso,
+                    "color": madre_color,
+                    "procedencia": madre_procedencia,
+                    "notas": madre_notas,
+                    "id_gallo_genealogico": id_gallo_genealogico  # 🔥 HEREDA EL ID GENEALÓGICO
+                })
+                
+                nueva_madre_id = result_madre.fetchone().id
+                registros_creados.append({
+                    "tipo": "madre",
+                    "id": nueva_madre_id,
+                    "nombre": madre_nombre,
+                    "codigo": madre_codigo.upper(),
+                    "id_gallo_genealogico": id_gallo_genealogico
+                })
+        
+        # Construir update dinámico para el gallo principal
         updates = []
         params = {"gallo_id": gallo_id, "user_id": current_user_id}
         
@@ -306,31 +430,46 @@ async def update_gallo_real(
             updates.append("notas = :notas")
             params["notas"] = notas
         
-        if not updates:
-            return {
-                "success": True,
-                "message": "No hay cambios para aplicar",
-                "data": {"gallo_id": gallo_id}
-            }
+        # Actualizar IDs de padres si se crearon nuevos
+        if nuevo_padre_id:
+            updates.append("padre_id = :padre_id")
+            params["padre_id"] = nuevo_padre_id
+        if nueva_madre_id:
+            updates.append("madre_id = :madre_id")
+            params["madre_id"] = nueva_madre_id
         
-        # Ejecutar update
-        updates.append("updated_at = CURRENT_TIMESTAMP")
-        update_query = text(f"""
-            UPDATE gallos 
-            SET {', '.join(updates)}
-            WHERE id = :gallo_id AND user_id = :user_id
-        """)
+        if updates:
+            # Ejecutar update
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            update_query = text(f"""
+                UPDATE gallos 
+                SET {', '.join(updates)}
+                WHERE id = :gallo_id AND user_id = :user_id
+            """)
+            
+            db.execute(update_query, params)
         
-        db.execute(update_query, params)
         db.commit()
+        
+        # Preparar respuesta
+        response_data = {
+            "gallo_id": gallo_id,
+            "cambios": list(params.keys())[2:]  # Excluir gallo_id y user_id
+        }
+        
+        if registros_creados:
+            response_data["registros_creados"] = registros_creados
+            response_data["tecnica_epica"] = {
+                "familia_expandida": True,
+                "id_gallo_genealogico": existing.id_gallo_genealogico,
+                "nuevos_miembros": len(registros_creados),
+                "consulta_familia": f"SELECT * FROM gallos WHERE id_gallo_genealogico = {existing.id_gallo_genealogico}"
+            }
         
         return {
             "success": True,
-            "message": "✅ GALLO ACTUALIZADO EN POSTGRESQL",
-            "data": {
-                "gallo_id": gallo_id,
-                "cambios": list(params.keys())[2:]  # Excluir gallo_id y user_id
-            }
+            "message": f"✅ GALLO ACTUALIZADO {'Y FAMILIA EXPANDIDA' if registros_creados else ''} EN POSTGRESQL",
+            "data": response_data
         }
         
     except HTTPException:

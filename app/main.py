@@ -9,22 +9,37 @@ import ssl
 import urllib3
 from decouple import config
 
+# 🗄️ Importar modelos ANTES que los routers para evitar errores de SQLAlchemy
+from app.models_init import *  # Importa todos los modelos en orden correcto
+
 # Importar routers de API
 from app.api.v1 import auth, profiles
-# Endpoints limpios de gallos
+
+# 🔥 ENDPOINTS ÉPICOS CON TÉCNICA RECURSIVA GENEALÓGICA
 try:
-    from app.api.v1.gallos_real import router as gallos_router
-    from app.api.v1.gallos_con_pedigri import router as pedigri_router  # ← NUEVO
+    from app.api.v1.gallos_genealogia_epica import router as gallos_epicos_router  # ← ÉPICO PRINCIPAL
+    from app.api.v1.fotos_gallos_epica import router as fotos_epicas_router  # ← FOTOS CLOUDINARY
     from app.api.v1.razas_simple import router as razas_router 
-    from app.api.v1.fotos_final import router as fotos_router
-    genealogia_router = None  # Ya está incluida en gallos_router
+    print("🔥 ¡ENDPOINTS ÉPICOS CARGADOS EXITOSAMENTE!")
+    print("   - ✅ Gallos con técnica recursiva genealógica")
+    print("   - ✅ Fotos con Cloudinary avanzado")
+    print("   - ✅ Razas básicas")
 except ImportError as e:
-    print(f"Advertencia: No se pudieron importar endpoints limpios: {e}")
-    gallos_router = None
-    pedigri_router = None
+    print(f"❌ Error importando endpoints épicos: {e}")
+    gallos_epicos_router = None
+    fotos_epicas_router = None
     razas_router = None
-    fotos_router = None
-    genealogia_router = None
+
+# 🔄 FALLBACK: Endpoints antiguos (por compatibilidad)
+try:
+    from app.api.v1.gallos_real import router as gallos_fallback_router
+    from app.api.v1.gallos_con_pedigri import router as pedigri_fallback_router
+    from app.api.v1.fotos_final import router as fotos_fallback_router
+    print("⚠️  Endpoints de fallback disponibles")
+except ImportError:
+    gallos_fallback_router = None
+    pedigri_fallback_router = None
+    fotos_fallback_router = None
     
 from app.core.config import settings
 from app.core.exceptions import CustomException
@@ -34,13 +49,30 @@ from app.core.security import get_current_user_id
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ssl._create_default_https_context = ssl._create_unverified_context
 
-# 🚀 Configuración FastAPI
+# 🐓 Configuración FastAPI CASTO_DE_GALLOSAPP
 app = FastAPI(
-    title="🐓 GalloApp Pro API",
-    description="Backend para Gestión de Gallos de Pelea con Autenticación JWT",
-    version="1.0.0",
+    title="CASTO_DE_GALLOSAPP API",
+    description="""Backend profesional para Gestión de Gallos de Pelea con:
+    • 🐓 Gestión completa de gallos
+    • 🧬 Sistema de genealogía avanzado
+    • 📸 Integración Cloudinary para fotos
+    • 🔒 Autenticación JWT segura
+    • ⚡ Performance optimizada
+    • 🏆 Calidad profesional
+    
+    **Desarrollado por el equipo de Casto de Gallos** 🐓
+    """,
+    version="1.0.0-PROFESIONAL",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    contact={
+        "name": "Casto de Gallos Team",
+        "description": "Sistema profesional de gestión de gallos"
+    },
+    license_info={
+        "name": "Propietario",
+        "description": "Sistema desarrollado para Casto de Gallos"
+    }
 )
 
 # 🌐 CORS
@@ -76,40 +108,81 @@ async def custom_exception_handler(request: Request, exc: CustomException):
 app.include_router(auth.router, prefix="/auth", tags=["🔐 Autenticación"])
 app.include_router(profiles.router, prefix="/profiles", tags=["👤 Perfiles"])
 
-# 🐓 ENDPOINTS LIMPIOS DE GALLOS (si están disponibles)
-if gallos_router:
-    app.include_router(gallos_router, prefix="/api/v1/gallos", tags=["🐓 Gallos (5)"])
-if pedigri_router:
-    app.include_router(pedigri_router, prefix="/api/v1/gallos", tags=["🐓 Gallos (5)"])
+# 🔥 ENDPOINTS ÉPICOS PRINCIPALES
+if gallos_epicos_router:
+    app.include_router(
+        gallos_epicos_router, 
+        prefix="/api/v1/gallos", 
+        tags=["🔥 Gallos Épicos - Técnica Recursiva Genealógica"]
+    )
+    print("✅ Router épico de gallos activado")
+
+if fotos_epicas_router:
+    app.include_router(
+        fotos_epicas_router, 
+        prefix="/api/v1/gallos", 
+        tags=["📸 Fotos Épicas - Cloudinary Avanzado"]
+    )
+    print("✅ Router épico de fotos activado")
+
 if razas_router:
-    app.include_router(razas_router, prefix="/api/v1/razas", tags=["🧬 Razas (2)"])
-if fotos_router:
-    app.include_router(fotos_router, prefix="/api/v1/gallos", tags=["📷 Fotos (3)"])
-if genealogia_router:
-    app.include_router(genealogia_router, prefix="/api/v1/gallos", tags=["🌳 Genealogía (2)"])
+    app.include_router(
+        razas_router, 
+        prefix="/api/v1/razas", 
+        tags=["🧬 Razas"]
+    )
+    print("✅ Router de razas activado")
+
+# 🔄 FALLBACK: Endpoints antiguos (solo si los épicos no están disponibles)
+if not gallos_epicos_router and gallos_fallback_router:
+    app.include_router(gallos_fallback_router, prefix="/api/v1/gallos", tags=["🐓 Gallos (Fallback)"])
+    print("⚠️ Usando router fallback de gallos")
+
+if not gallos_epicos_router and pedigri_fallback_router:
+    app.include_router(pedigri_fallback_router, prefix="/api/v1/gallos", tags=["🐓 Pedigrí (Fallback)"])
+    print("⚠️ Usando router fallback de pedigrí")
+
+if not fotos_epicas_router and fotos_fallback_router:
+    app.include_router(fotos_fallback_router, prefix="/api/v1/gallos", tags=["📷 Fotos (Fallback)"])
+    print("⚠️ Usando router fallback de fotos")
 
 # 🏠 ENDPOINTS BÁSICOS
 
 @app.get("/")
 async def root():
-    """🏠 Hola Mundo"""
+    """🐓 Bienvenido a CASTO_DE_GALLOSAPP API"""
     return {
-        "message": "🐓 ¡GalloApp Pro API con Seguridad JWT!",
+        "message": "🐓 ¡CASTO_DE_GALLOSAPP API - Sistema Profesional!",
         "status": "✅ ACTIVO",
-        "version": "1.0.0",
+        "version": "1.0.0-PROFESIONAL",
         "security": "🔒 JWT Protegido",
+        "features": {
+            "genealogia_recursiva": "🧬 Técnica Infinita de Genealogía",
+            "cloudinary_avanzado": "📸 Sistema de Fotos Optimizado",
+            "performance": "⚡ Consultas Ultra Rápidas",
+            "validaciones": "✅ Robustas y Completas"
+        },
         "endpoints": {
             "docs": "/docs",
             "health": "/health",
             "auth": "/auth/*",
             "profiles": "/profiles/*",
-            "gallos": "/api/v1/gallos" if gallos_router else "NO DISPONIBLE",
-            "fotos": "/api/v1/gallos/{id}/foto" if fotos_router else "NO DISPONIBLE",
+            "gallos_epicos": "/api/v1/gallos" if gallos_epicos_router else "NO DISPONIBLE",
+            "fotos_epicas": "/api/v1/gallos/{id}/foto-principal" if fotos_epicas_router else "NO DISPONIBLE",
             "razas": "/api/v1/razas" if razas_router else "NO DISPONIBLE",
-            "genealogia": "/api/v1/gallos/{id}/genealogia" if gallos_router else "NO DISPONIBLE",
+            "genealogia": "/api/v1/gallos/{id}/genealogia" if gallos_epicos_router else "NO DISPONIBLE",
             "test_db": "/test-db",
-            "test_cloudinary": "/test-cloudinary"
-        }
+            "test_cloudinary": "/test-cloudinary",
+            "test_full": "/test-full"
+        },
+        "tecnica_epica": {
+            "descripcion": "Sistema genealógico recursivo infinito",
+            "creacion_automatica": "1 gallo → hasta 3 registros automáticos",
+            "campo_magico": "id_gallo_genealogico vincula familias",
+            "escalabilidad": "Generaciones infinitas",
+            "performance": "Consultas optimizadas con índices"
+        },
+        "creado_por": "Equipo de Casto de Gallos 🐓"
     }
 
 @app.get("/health")
@@ -117,7 +190,7 @@ async def health_check():
     """💓 Health Check"""
     return {
         "status": "✅ HEALTHY",
-        "service": "GalloApp Pro API",
+        "service": "CASTO_DE_GALLOSAPP API",
         "database": "PostgreSQL Railway",
         "storage": "Cloudinary",
         "auth": "JWT Ready",
@@ -202,7 +275,7 @@ async def test_cloudinary():
 async def test_full_system():
     """🔥 Test Completo del Sistema"""
     results = {
-        "sistema": "GalloApp Pro Backend",
+        "sistema": "CASTO_DE_GALLOSAPP Backend",
         "timestamp": "2025-01-23",
         "security": "🔒 JWT Implementado",
         "tests": {}
