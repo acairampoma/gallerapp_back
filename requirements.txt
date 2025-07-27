@@ -41,7 +41,7 @@ python-dotenv==1.0.0      # Carga de archivos .env
 # 📊 UTILIDADES Y PERFORMANCE
 # ========================
 email-validator==2.1.0    # Validación de emails
-anyio==4.0.0              # Async I/O utilities
+anyio==3.7.1              # Async I/O utilities (compatible con FastAPI)
 httpx==0.25.2             # Cliente HTTP async
 
 # ========================
