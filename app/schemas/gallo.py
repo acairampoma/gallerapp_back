@@ -259,7 +259,7 @@ class GenealogyCreateResponse(BaseModel):
     data: Dict[str, Any] = Field(..., description="Datos de la respuesta")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Gallo registrado exitosamente con genealogía",
@@ -297,7 +297,7 @@ class GallosListResponse(BaseModel):
     data: Dict[str, Any]
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "data": {
@@ -329,7 +329,7 @@ class PhotoUploadResponse(BaseModel):
     data: Dict[str, Any]
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Foto subida exitosamente",
@@ -373,7 +373,7 @@ class GalloSearchParams(BaseModel):
     tiene_padres: Optional[bool] = None
     created_after: Optional[date] = None
     sort_by: str = Field(default="created_at")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
     include_genealogy: bool = Field(default=False)
 
 class GenealogySearchParams(BaseModel):

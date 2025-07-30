@@ -6,7 +6,7 @@ from fastapi import HTTPException, UploadFile
 from typing import Optional, List, Dict, Any
 import os
 import uuid
-import magic
+# import magic  # COMENTADO POR CONFLICTO EN WINDOWS
 from PIL import Image
 import io
 
@@ -25,8 +25,76 @@ class CloudinaryService:
     }
     
     @staticmethod
+    def upload_gallo_photo_from_file(
+        file_content: bytes,
+        filename: str,
+        gallo_codigo: str, 
+        photo_type: str = "principal",
+        user_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """🔥 Subir foto de gallo desde contenido de archivo (para fotos automáticas)"""
+        
+        try:
+            # Generar public_id único
+            unique_id = str(uuid.uuid4())[:8]
+            public_id = f"{CloudinaryService.FOLDER_GALLOS}/{gallo_codigo.upper()}_{photo_type}_{unique_id}"
+            
+            if user_id:
+                public_id = f"{CloudinaryService.FOLDER_GALLOS}/user_{user_id}/{gallo_codigo.upper()}_{photo_type}_{unique_id}"
+            
+            # Upload a Cloudinary desde contenido bytes
+            upload_result = cloudinary.uploader.upload(
+                file_content,
+                public_id=public_id,
+                resource_type="image",
+                format="jpg",  # Convertir todo a JPG para consistencia
+                quality="auto:good",
+                fetch_format="auto",
+                flags="progressive",
+                transformation=[
+                    {"quality": "auto:good"},
+                    {"fetch_format": "auto"}
+                ],
+                # Metadata
+                context={
+                    "gallo_codigo": gallo_codigo,
+                    "photo_type": photo_type,
+                    "uploaded_by": f"user_{user_id}" if user_id else "system",
+                    "source": "auto_upload"
+                }
+            )
+            
+            # Generar URLs con transformaciones
+            urls = {
+                'original': upload_result['secure_url'],
+                'thumbnail': cloudinary.CloudinaryImage(public_id).build_url(**CloudinaryService.TRANSFORMATIONS['thumbnail']),
+                'medium': cloudinary.CloudinaryImage(public_id).build_url(**CloudinaryService.TRANSFORMATIONS['medium']),
+                'large': cloudinary.CloudinaryImage(public_id).build_url(**CloudinaryService.TRANSFORMATIONS['large']),
+                'optimized': cloudinary.CloudinaryImage(public_id).build_url(**CloudinaryService.TRANSFORMATIONS['optimized'])
+            }
+            
+            return {
+                'success': True,
+                'public_id': upload_result['public_id'],
+                'secure_url': upload_result['secure_url'],
+                'urls': urls,
+                'metadata': {
+                    'width': upload_result.get('width'),
+                    'height': upload_result.get('height'),
+                    'format': upload_result.get('format'),
+                    'size_bytes': upload_result.get('bytes'),
+                    'created_at': upload_result.get('created_at')
+                },
+                'cloudinary_response': upload_result
+            }
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error subiendo foto automática a Cloudinary: {str(e)}"
+            )
     def validate_image_file(file: UploadFile) -> bool:
-        """🔍 Validar archivo de imagen"""
+        """🔍 Validar archivo de imagen (versión simplificada para Windows)"""
         try:
             # Verificar tamaño
             file_content = file.file.read()
@@ -38,20 +106,24 @@ class CloudinaryService:
                     detail=f"Archivo muy grande. Máximo {CloudinaryService.MAX_FILE_SIZE // (1024*1024)}MB"
                 )
             
-            # Verificar tipo MIME
-            mime = magic.from_buffer(file_content, mime=True)
-            if not mime.startswith('image/'):
+            # Verificar extensión de archivo (método simple)
+            filename = file.filename.lower() if file.filename else ""
+            valid_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+            
+            if not any(filename.endswith(ext) for ext in valid_extensions):
                 raise HTTPException(
                     status_code=400,
-                    detail="El archivo debe ser una imagen válida"
+                    detail=f"Formato no permitido. Use: {', '.join(valid_extensions)}"
                 )
             
-            # Verificar formato
-            format_extension = mime.split('/')[-1].lower()
-            if format_extension not in CloudinaryService.ALLOWED_FORMATS:
+            # Intentar abrir como imagen con PIL
+            try:
+                image = Image.open(io.BytesIO(file_content))
+                image.verify()  # Verificar que es una imagen válida
+            except Exception:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Formato no permitido. Use: {', '.join(CloudinaryService.ALLOWED_FORMATS)}"
+                    detail="El archivo no es una imagen válida"
                 )
             
             return True

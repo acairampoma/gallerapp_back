@@ -29,7 +29,7 @@ async def list_gallos_real(
             FROM gallos g 
             LEFT JOIN razas r ON g.raza_id = r.id 
             WHERE g.user_id = :user_id 
-            ORDER BY g.created_at DESC
+            ORDER BY g.created_at ASC
         """)
         
         result = db.execute(query, {"user_id": current_user_id})
