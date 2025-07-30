@@ -12,12 +12,6 @@ from app.models.gallo_simple import Gallo
 from app.services.cloudinary_service import CloudinaryService
 from app.services.genealogy_service import GenealogyService
 from app.services.validation_service import ValidationService
-from app.schemas.gallo import (
-    GenealogyCreateResponse, GallosListResponse, GalloDetailResponse,
-    PhotoUploadResponse, GenealogySearchResponse, ErrorResponse,
-    GalloSearchParams, GenealogySearchParams, DashboardStats,
-    SuccessResponse, CodeValidationResponse
-)
 
 router = APIRouter()
 
@@ -25,7 +19,7 @@ router = APIRouter()
 # 🔥 ENDPOINT ÉPICO PRINCIPAL - TÉCNICA RECURSIVA GENEALÓGICA
 # ========================
 
-@router.post("/with-genealogy", response_model=GenealogyCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/with-genealogy", status_code=status.HTTP_201_CREATED)
 async def create_gallo_with_genealogy(
     # 🐓 DATOS DEL GALLO PRINCIPAL
     nombre: str = Form(..., description="Nombre del gallo"),
@@ -397,7 +391,7 @@ async def create_gallo_with_genealogy(
 # 📋 ENDPOINTS CRUD BÁSICOS
 # ========================
 
-@router.get("", response_model=GallosListResponse)
+@router.get("")
 async def list_gallos(
     page: int = Query(1, ge=1, description="Página actual"),
     limit: int = Query(20, ge=1, le=100, description="Elementos por página"),
@@ -595,7 +589,7 @@ async def list_gallos(
             detail=f"Error listando gallos: {str(e)}"
         )
 
-@router.get("/{gallo_id}", response_model=GalloDetailResponse)
+@router.get("/{gallo_id}")
 async def get_gallo_detail(
     gallo_id: int,
     include_genealogy: bool = Query(True, description="Incluir árbol genealógico"),
@@ -685,7 +679,7 @@ async def get_gallo_detail(
 # 🌳 ENDPOINTS GENEALÓGICOS AVANZADOS
 # ========================
 
-@router.get("/{gallo_id}/genealogia", response_model=GenealogySearchResponse)
+@router.get("/{gallo_id}/genealogia")
 async def get_family_tree(
     gallo_id: int,
     max_depth: int = Query(5, ge=1, le=10, description="Profundidad máxima del árbol"),
@@ -729,7 +723,7 @@ async def get_family_tree(
             detail=f"Error obteniendo árbol genealógico: {str(e)}"
         )
 
-@router.get("/search/genealogia", response_model=GenealogySearchResponse)
+@router.get("/search/genealogia")
 async def search_by_genealogy(
     genealogy_id: Optional[int] = Query(None, description="ID de familia genealógica"),
     ancestro_id: Optional[int] = Query(None, description="Buscar descendientes de este ancestro"),
@@ -772,7 +766,7 @@ async def search_by_genealogy(
 # 📊 ENDPOINTS DE ESTADÍSTICAS
 # ========================
 
-@router.get("/dashboard/stats", response_model=DashboardStats)
+@router.get("/dashboard/stats")
 async def get_dashboard_stats(
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
@@ -816,7 +810,7 @@ async def get_dashboard_stats(
 # ✅ ENDPOINTS DE UTILIDADES
 # ========================
 
-@router.get("/validate-codigo/{codigo}", response_model=CodeValidationResponse)
+@router.get("/validate-codigo/{codigo}")
 async def validate_codigo_unique(
     codigo: str,
     current_user_id: int = Depends(get_current_user_id),
@@ -874,7 +868,7 @@ async def validate_codigo_unique(
 # 🔥 ENDPOINT PUT ÉPICO - ACTUALIZAR CON EXPANSIÓN GENEALÓGICA
 # ========================
 
-@router.put("/{gallo_id}", response_model=GenealogyCreateResponse, status_code=status.HTTP_200_OK)
+@router.put("/{gallo_id}", status_code=status.HTTP_200_OK)
 async def update_gallo_with_genealogy(
     gallo_id: int,
     # 🐓 DATOS DEL GALLO PRINCIPAL (MISMOS CAMPOS QUE POST)
