@@ -16,7 +16,7 @@ class CloudinaryService:
     # 📋 CONFIGURACIÓN
     ALLOWED_FORMATS = ['jpg', 'jpeg', 'png', 'webp']
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-    FOLDER_GALLOS = "gallos"
+    FOLDER_GALLOS = "galloapp"
     TRANSFORMATIONS = {
         'thumbnail': {'width': 150, 'height': 150, 'crop': 'thumb', 'gravity': 'face'},
         'medium': {'width': 400, 'height': 400, 'crop': 'limit', 'quality': 'auto'},
@@ -137,7 +137,7 @@ class CloudinaryService:
             )
     
     @staticmethod
-    def upload_gallo_photo(
+    async def upload_gallo_photo(
         file: UploadFile, 
         gallo_codigo: str, 
         photo_type: str = "principal",
@@ -156,9 +156,12 @@ class CloudinaryService:
             if user_id:
                 public_id = f"{CloudinaryService.FOLDER_GALLOS}/user_{user_id}/{gallo_codigo.upper()}_{photo_type}_{unique_id}"
             
+            # Leer contenido del archivo
+            file_content = await file.read()
+            
             # Upload a Cloudinary
             upload_result = cloudinary.uploader.upload(
-                file.file,
+                file_content,
                 public_id=public_id,
                 resource_type="image",
                 format="jpg",  # Convertir todo a JPG para consistencia

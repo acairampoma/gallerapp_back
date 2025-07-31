@@ -15,31 +15,23 @@ from app.models_init import *  # Importa todos los modelos en orden correcto
 # Importar routers de API
 from app.api.v1 import auth, profiles
 
-# 🔥 ENDPOINTS ÉPICOS CON TÉCNICA RECURSIVA GENEALÓGICA
+# 🔥 ENDPOINTS LIMPIOS - SOLO LOS QUE EXISTEN
 try:
-    from app.api.v1.gallos_genealogia_epica import router as gallos_epicos_router  # ← ÉPICO PRINCIPAL
-    from app.api.v1.fotos_gallos_epica import router as fotos_epicas_router  # ← FOTOS CLOUDINARY
+    from app.api.v1.gallos_con_pedigri import router as gallos_pedigri_router
+    from app.api.v1.fotos_final import router as fotos_router
     from app.api.v1.razas_simple import router as razas_router 
-    print("🔥 ¡ENDPOINTS ÉPICOS CARGADOS EXITOSAMENTE!")
-    print("   - ✅ Gallos con técnica recursiva genealógica")
-    print("   - ✅ Fotos con Cloudinary avanzado")
+    print("🔥 ¡ENDPOINTS LIMPIOS CARGADOS EXITOSAMENTE!")
+    print("   - ✅ Gallos con pedigrí genealógico")
+    print("   - ✅ Fotos estructura simple")
     print("   - ✅ Razas básicas")
 except ImportError as e:
-    print(f"❌ Error importando endpoints épicos: {e}")
-    gallos_epicos_router = None
-    fotos_epicas_router = None
+    print(f"❌ Error importando endpoints: {e}")
+    gallos_pedigri_router = None
+    fotos_router = None
     razas_router = None
 
-# 🔄 FALLBACK: Endpoints antiguos (por compatibilidad)
-try:
-    from app.api.v1.gallos_real import router as gallos_fallback_router
-    from app.api.v1.gallos_con_pedigri import router as pedigri_fallback_router
-    from app.api.v1.fotos_final import router as fotos_fallback_router
-    print("⚠️  Endpoints de fallback disponibles")
-except ImportError:
-    gallos_fallback_router = None
-    pedigri_fallback_router = None
-    fotos_fallback_router = None
+# 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
+# Los archivos de fallback fueron eliminados en la limpieza
     
 from app.core.config import settings
 from app.core.exceptions import CustomException
@@ -108,22 +100,22 @@ async def custom_exception_handler(request: Request, exc: CustomException):
 app.include_router(auth.router, prefix="/auth", tags=["🔐 Autenticación"])
 app.include_router(profiles.router, prefix="/profiles", tags=["👤 Perfiles"])
 
-# 🔥 ENDPOINTS ÉPICOS PRINCIPALES
-if gallos_epicos_router:
+# 🔥 ENDPOINTS LIMPIOS PRINCIPALES
+if gallos_pedigri_router:
     app.include_router(
-        gallos_epicos_router, 
+        gallos_pedigri_router, 
         prefix="/api/v1/gallos", 
-        tags=["🔥 Gallos Épicos - Técnica Recursiva Genealógica"]
+        tags=["🔥 Gallos con Pedigrí - Técnica Genealógica"]
     )
-    print("✅ Router épico de gallos activado")
+    print("✅ Router de gallos con pedigrí activado")
 
-if fotos_epicas_router:
+if fotos_router:
     app.include_router(
-        fotos_epicas_router, 
+        fotos_router, 
         prefix="/api/v1/gallos", 
-        tags=["📸 Fotos Épicas - Cloudinary Avanzado"]
+        tags=["📸 Fotos - Cloudinary Simple"]
     )
-    print("✅ Router épico de fotos activado")
+    print("✅ Router de fotos activado")
 
 if razas_router:
     app.include_router(
@@ -133,18 +125,7 @@ if razas_router:
     )
     print("✅ Router de razas activado")
 
-# 🔄 FALLBACK: Endpoints antiguos (solo si los épicos no están disponibles)
-if not gallos_epicos_router and gallos_fallback_router:
-    app.include_router(gallos_fallback_router, prefix="/api/v1/gallos", tags=["🐓 Gallos (Fallback)"])
-    print("⚠️ Usando router fallback de gallos")
-
-if not gallos_epicos_router and pedigri_fallback_router:
-    app.include_router(pedigri_fallback_router, prefix="/api/v1/gallos", tags=["🐓 Pedigrí (Fallback)"])
-    print("⚠️ Usando router fallback de pedigrí")
-
-if not fotos_epicas_router and fotos_fallback_router:
-    app.include_router(fotos_fallback_router, prefix="/api/v1/gallos", tags=["📷 Fotos (Fallback)"])
-    print("⚠️ Usando router fallback de fotos")
+# 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 
 # 🏠 ENDPOINTS BÁSICOS
 
@@ -167,10 +148,10 @@ async def root():
             "health": "/health",
             "auth": "/auth/*",
             "profiles": "/profiles/*",
-            "gallos_epicos": "/api/v1/gallos" if gallos_epicos_router else "NO DISPONIBLE",
-            "fotos_epicas": "/api/v1/gallos/{id}/foto-principal" if fotos_epicas_router else "NO DISPONIBLE",
+            "gallos_pedigri": "/api/v1/gallos" if gallos_pedigri_router else "NO DISPONIBLE",
+            "fotos": "/api/v1/gallos/{id}/foto" if fotos_router else "NO DISPONIBLE",
             "razas": "/api/v1/razas" if razas_router else "NO DISPONIBLE",
-            "genealogia": "/api/v1/gallos/{id}/genealogia" if gallos_epicos_router else "NO DISPONIBLE",
+            "genealogia": "/api/v1/gallos/con-pedigri" if gallos_pedigri_router else "NO DISPONIBLE",
             "test_db": "/test-db",
             "test_cloudinary": "/test-cloudinary",
             "test_full": "/test-full"

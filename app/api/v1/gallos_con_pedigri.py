@@ -313,46 +313,41 @@ async def create_gallo_con_pedigri(
         # Commit todo junto
         db.commit()
         
-        # 🔥 SUBIR FOTO AUTOMÁTICAMENTE DESPUÉS DE CREAR GALLOS
+        # 🔥 SUBIR FOTO DEL PARÁMETRO DESPUÉS DE CREAR GALLOS
         foto_url = None
         cloudinary_url = None
         try:
-            # Ruta de la foto demo
-            foto_demo_path = r"C:\Users\acairamp\Documents\proyecto\Curso\Flutter\imagenes\gallo1.jpg"
-            
-            if os.path.exists(foto_demo_path):
-                print(f"📷 Subiendo foto automática para gallo {gallo_principal_id}")
+            # Usar foto_principal del parámetro Form (NO ruta estática)
+            if foto_principal:
+                print(f"📷 Subiendo foto del parámetro para gallo {gallo_principal_id}")
                 
-                # Leer archivo y crear objeto similar a UploadFile
-                with open(foto_demo_path, "rb") as foto_file:
-                    # Usar CloudinaryService para subir desde contenido de archivo
-                    cloudinary_result = CloudinaryService.upload_gallo_photo_from_file(
-                        file_content=foto_file.read(),
-                        filename="gallo1.jpg",
-                        gallo_codigo=codigo_final,
-                        photo_type="principal",
-                        user_id=current_user_id
-                    )
-                    
-                    foto_url = cloudinary_result['secure_url']
-                    cloudinary_url = cloudinary_result.get('urls', {}).get('optimized', foto_url)
-                    
-                    # Actualizar gallo principal con URL de foto
-                    update_foto = text("""
-                        UPDATE gallos 
-                        SET foto_principal_url = :foto_url, url_foto_cloudinary = :cloudinary_url
-                        WHERE id = :id
-                    """)
-                    db.execute(update_foto, {
-                        "foto_url": foto_url,
-                        "cloudinary_url": cloudinary_url,
-                        "id": gallo_principal_id
-                    })
-                    db.commit()
-                    
-                    print(f"✅ Foto subida exitosamente: {cloudinary_url}")
+                # Usar CloudinaryService con el UploadFile del parámetro
+                cloudinary_result = await CloudinaryService.upload_gallo_photo(
+                    file=foto_principal,  # ← PARÁMETRO DEL FORM
+                    gallo_codigo=codigo_final,
+                    photo_type="principal",
+                    user_id=current_user_id
+                )
+                
+                foto_url = cloudinary_result['secure_url']
+                cloudinary_url = cloudinary_result.get('urls', {}).get('optimized', foto_url)
+                
+                # Actualizar gallo principal con URL de foto
+                update_foto = text("""
+                    UPDATE gallos 
+                    SET foto_principal_url = :foto_url, url_foto_cloudinary = :cloudinary_url
+                    WHERE id = :id
+                """)
+                db.execute(update_foto, {
+                    "foto_url": foto_url,
+                    "cloudinary_url": cloudinary_url,
+                    "id": gallo_principal_id
+                })
+                db.commit()
+                
+                print(f"✅ Foto subida exitosamente: {cloudinary_url}")
             else:
-                print(f"⚠️ Foto demo no encontrada en: {foto_demo_path}")
+                print(f"⚠️ No se proporcionó foto_principal en el parámetro")
                 
         except Exception as foto_error:
             print(f"❌ Error subiendo foto automática: {foto_error}")
