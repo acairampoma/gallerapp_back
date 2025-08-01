@@ -13,6 +13,88 @@ from app.services.cloudinary_service import CloudinaryService
 
 router = APIRouter()
 
+# 🐓 LISTAR TODOS LOS GALLOS DEL USUARIO - ENDPOINT QUE FALTABA
+@router.get("/", response_model=dict)
+async def get_gallos_usuario(
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    🔥 LISTAR TODOS LOS GALLOS DEL USUARIO AUTENTICADO
+    Incluye fotos, pedigrí y datos completos
+    """
+    try:
+        # Consulta SQL para obtener todos los gallos del usuario
+        query = text("""
+            SELECT 
+                id, user_id, raza_id, nombre, codigo_identificacion, 
+                fecha_nacimiento, peso, altura, color, estado,
+                padre_id, madre_id, foto_principal_url, fotos_adicionales,
+                procedencia, notas, created_at, updated_at,
+                id_gallo_genealogico, url_foto_cloudinary,
+                color_placa, ubicacion_placa, color_patas, color_plumaje,
+                criador, propietario_actual, observaciones,
+                numero_registro, tipo_registro
+            FROM gallos 
+            WHERE user_id = :user_id
+            ORDER BY created_at DESC
+        """)
+        
+        result = db.execute(query, {"user_id": current_user_id})
+        gallos_raw = result.fetchall()
+        
+        # Convertir a lista de diccionarios
+        gallos_list = []
+        for gallo in gallos_raw:
+            gallo_dict = {
+                "id": gallo.id,
+                "user_id": gallo.user_id,
+                "raza_id": gallo.raza_id,
+                "nombre": gallo.nombre,
+                "codigo_identificacion": gallo.codigo_identificacion,
+                "fecha_nacimiento": gallo.fecha_nacimiento.isoformat() if gallo.fecha_nacimiento else None,
+                "peso": str(gallo.peso) if gallo.peso else None,
+                "altura": gallo.altura,
+                "color": gallo.color,
+                "estado": gallo.estado,
+                "padre_id": gallo.padre_id,
+                "madre_id": gallo.madre_id,
+                "foto_principal_url": gallo.foto_principal_url,
+                "url_foto_cloudinary": gallo.url_foto_cloudinary,
+                "fotos_adicionales": gallo.fotos_adicionales,
+                "procedencia": gallo.procedencia,
+                "notas": gallo.notas,
+                "color_placa": gallo.color_placa,
+                "ubicacion_placa": gallo.ubicacion_placa,
+                "color_patas": gallo.color_patas,
+                "color_plumaje": gallo.color_plumaje,
+                "criador": gallo.criador,
+                "propietario_actual": gallo.propietario_actual,
+                "observaciones": gallo.observaciones,
+                "numero_registro": gallo.numero_registro,
+                "tipo_registro": gallo.tipo_registro,
+                "id_gallo_genealogico": gallo.id_gallo_genealogico,
+                "created_at": gallo.created_at.isoformat() if gallo.created_at else None,
+                "updated_at": gallo.updated_at.isoformat() if gallo.updated_at else None
+            }
+            gallos_list.append(gallo_dict)
+        
+        return {
+            "success": True,
+            "data": {
+                "gallos": gallos_list,
+                "total": len(gallos_list),
+                "user_id": current_user_id
+            },
+            "message": f"Se encontraron {len(gallos_list)} gallos"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo gallos: {str(e)}"
+        )
+
 @router.post("/con-pedigri", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_gallo_con_pedigri(
     # DATOS DEL GALLO PRINCIPAL
