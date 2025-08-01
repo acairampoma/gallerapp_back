@@ -475,3 +475,111 @@ async def create_gallo_con_pedigri(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creando pedigri: {str(e)}"
         )
+
+@router.put("/{gallo_id}", response_model=dict)
+async def update_gallo_con_expansion(
+    gallo_id: int,
+    nombre: str = Form(...),
+    codigo_identificacion: str = Form(...),
+    peso: Optional[float] = Form(None),
+    altura: Optional[int] = Form(None),
+    color: Optional[str] = Form(None),
+    notas: Optional[str] = Form(None),
+    foto_principal: Optional[UploadFile] = File(None),
+    crear_padre: bool = Form(False),
+    padre_nombre: Optional[str] = Form(None),
+    crear_madre: bool = Form(False),
+    madre_nombre: Optional[str] = Form(None),
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verificar que el gallo existe
+        query_check = text("SELECT * FROM gallos WHERE id = :id AND user_id = :user_id")
+        gallo_actual = db.execute(query_check, {"id": gallo_id, "user_id": current_user_id}).fetchone()
+        
+        if not gallo_actual:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Gallo no encontrado"
+            )
+        
+        # ACTUALIZAR DATOS PRINCIPALES
+        update_query = text("""
+            UPDATE gallos SET 
+                nombre = :nombre,
+                codigo_identificacion = :codigo,
+                peso = :peso,
+                altura = :altura,
+                color = :color,
+                notas = :notas,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id AND user_id = :user_id
+        """)
+        
+        db.execute(update_query, {
+            "id": gallo_id,
+            "user_id": current_user_id,
+            "nombre": nombre,
+            "codigo": codigo_identificacion,
+            "peso": peso,
+            "altura": altura,
+            "color": color,
+            "notas": notas
+        })
+        
+        # 🔥 SUBIR FOTO IGUAL QUE EL POST
+        foto_url = gallo_actual.foto_principal_url  # Mantener foto actual por defecto
+        cloudinary_url = gallo_actual.url_foto_cloudinary
+        
+        if foto_principal:
+            try:
+                print(f"📷 Subiendo nueva foto para gallo {gallo_id}")
+                
+                cloudinary_result = await CloudinaryService.upload_gallo_photo(
+                    file=foto_principal,
+                    gallo_codigo=codigo_identificacion,
+                    photo_type="principal",
+                    user_id=current_user_id
+                )
+                
+                foto_url = cloudinary_result['secure_url']
+                cloudinary_url = cloudinary_result.get('urls', {}).get('optimized', foto_url)
+                
+                # ACTUALIZAR URLs DE FOTO
+                update_foto = text("""
+                    UPDATE gallos 
+                    SET foto_principal_url = :foto_url, url_foto_cloudinary = :cloudinary_url
+                    WHERE id = :id
+                """)
+                db.execute(update_foto, {
+                    "foto_url": foto_url,
+                    "cloudinary_url": cloudinary_url,
+                    "id": gallo_id
+                })
+                
+                print(f"✅ Foto actualizada exitosamente: {cloudinary_url}")
+            except Exception as foto_error:
+                print(f"❌ Error subiendo foto: {foto_error}")
+                # No fallar el update por error de foto
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Gallo actualizado exitosamente",
+            "data": {
+                "gallo_id": gallo_id,
+                "nombre": nombre,
+                "foto_principal_url": foto_url,
+                "url_foto_cloudinary": cloudinary_url,
+                "foto_actualizada": foto_principal is not None
+            }
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error actualizando gallo: {str(e)}"
+        )
