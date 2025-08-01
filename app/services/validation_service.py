@@ -13,7 +13,7 @@ class ValidationService:
     """🔍 Servicio épico para validaciones robustas del sistema"""
     
     # 📋 CONFIGURACIONES DE VALIDACIÓN
-    CODIGO_PATTERN = r'^[A-Z0-9]{3,20}$'  # Solo letras mayúsculas y números, 3-20 caracteres
+    CODIGO_PATTERN = r'^[A-Z0-9]{3,20}$'  # Soslo letras mayúsculas y números, 3-20 caracteres
     NOMBRE_MIN_LENGTH = 2
     NOMBRE_MAX_LENGTH = 255
     PESO_MIN = 0.5  # kg
