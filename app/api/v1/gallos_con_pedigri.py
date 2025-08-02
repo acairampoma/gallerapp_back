@@ -104,7 +104,7 @@ async def create_gallo_con_pedigri(
     numero_registro: Optional[str] = Form(None),  # NUEVO CAMPO
     color_placa: Optional[str] = Form(None),      # NUEVO CAMPO
     ubicacion_placa: Optional[str] = Form(None),  # NUEVO CAMPO
-    raza_id: Optional[str] = Form(None),  # Cambiado a varchar
+    raza_id: Optional[str] = Form(None, description="ID o nombre de la raza del gallo"),
     peso: Optional[float] = Form(None),
     altura: Optional[int] = Form(None),
     color: Optional[str] = Form(None),
@@ -185,27 +185,17 @@ async def create_gallo_con_pedigri(
         # 🔍 DEBUG: Verificar qué valor tiene raza_id
         print(f"🔍 DEBUG POST - raza_id recibido: '{raza_id}' (tipo: {type(raza_id)})")
         
+        # 🛠️ NORMALIZAR raza_id: convertir string vacío a None
+        if raza_id == "" or raza_id == "null" or raza_id == "undefined":
+            raza_id = None
+        print(f"🔍 DEBUG POST - raza_id normalizado: '{raza_id}'")
+        
         # Insertar gallo principal PRIMERO (sin padres aún)
         # Usar numero_registro como codigo si está disponible, sino usar codigo_identificacion
         codigo_final = numero_registro or codigo_identificacion
         
-        insert_gallo = text("""
-            INSERT INTO gallos (
-                user_id, nombre, codigo_identificacion, fecha_nacimiento, 
-                color_placa, ubicacion_placa, raza_id, peso, altura, color, 
-                estado, procedencia, notas, color_patas, color_plumaje, 
-                criador, propietario_actual, observaciones,
-                tipo_registro, created_at, updated_at
-            ) VALUES (
-                :user_id, :nombre, :codigo, :fecha_nacimiento,
-                :color_placa, :ubicacion_placa, :raza_id, :peso, :altura, :color,
-                :estado, :procedencia, :notas, :color_patas, :color_plumaje,
-                :criador, :propietario_actual, :observaciones,
-                'principal', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-            ) RETURNING id, created_at
-        """)
-        
-        result_gallo = db.execute(insert_gallo, {
+        # 🔍 DEBUG: Mostrar exactamente qué se va a insertar
+        params_to_insert = {
             "user_id": current_user_id,
             "nombre": nombre,
             "codigo": codigo_final.upper(),
@@ -224,7 +214,31 @@ async def create_gallo_con_pedigri(
             "criador": criador,
             "propietario_actual": propietario_actual,
             "observaciones": observaciones
-        })
+        }
+        print(f"🔍 DEBUG POST - Parámetros a insertar: raza_id='{params_to_insert['raza_id']}'")
+        
+        insert_gallo = text("""
+            INSERT INTO gallos (
+                user_id, nombre, codigo_identificacion, fecha_nacimiento, 
+                color_placa, ubicacion_placa, raza_id, peso, altura, color, 
+                estado, procedencia, notas, color_patas, color_plumaje, 
+                criador, propietario_actual, observaciones,
+                tipo_registro, created_at, updated_at
+            ) VALUES (
+                :user_id, :nombre, :codigo, :fecha_nacimiento,
+                :color_placa, :ubicacion_placa, :raza_id, :peso, :altura, :color,
+                :estado, :procedencia, :notas, :color_patas, :color_plumaje,
+                :criador, :propietario_actual, :observaciones,
+                'principal', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            ) RETURNING id, created_at
+        """)
+        
+        try:
+            result_gallo = db.execute(insert_gallo, params_to_insert)
+            print(f"✅ DEBUG POST - INSERT ejecutado exitosamente")
+        except Exception as insert_error:
+            print(f"❌ DEBUG POST - ERROR EN INSERT: {insert_error}")
+            raise
         
         gallo_row = result_gallo.fetchone()
         gallo_principal_id = gallo_row.id
@@ -495,7 +509,7 @@ async def update_gallo_con_expansion(
     numero_registro: Optional[str] = Form(None),  # NUEVO CAMPO
     color_placa: Optional[str] = Form(None),      # NUEVO CAMPO
     ubicacion_placa: Optional[str] = Form(None),  # NUEVO CAMPO
-    raza_id: Optional[str] = Form(None),  # Cambiado a varchar
+    raza_id: Optional[str] = Form(None, description="ID o nombre de la raza del gallo"),
     peso: Optional[float] = Form(None),
     altura: Optional[int] = Form(None),
     color: Optional[str] = Form(None),
@@ -590,6 +604,11 @@ async def update_gallo_con_expansion(
         
         # 🔍 DEBUG: Verificar qué valor tiene raza_id en PUT
         print(f"🔍 DEBUG PUT - raza_id recibido: '{raza_id}' (tipo: {type(raza_id)})")
+        
+        # 🛠️ NORMALIZAR raza_id: convertir string vacío a None
+        if raza_id == "" or raza_id == "null" or raza_id == "undefined":
+            raza_id = None
+        print(f"🔍 DEBUG PUT - raza_id normalizado: '{raza_id}'")
         
         # Usar numero_registro como codigo si está disponible, sino usar codigo_identificacion
         codigo_final = numero_registro or codigo_identificacion
@@ -803,6 +822,34 @@ async def update_gallo_con_expansion(
             # Mantener madre actual si existe
             madre_id = gallo_actual.madre_id
         
+        # 🔍 DEBUG: Mostrar exactamente qué se va a actualizar
+        params_to_update = {
+            "id": gallo_id,
+            "user_id": current_user_id,
+            "nombre": nombre,
+            "codigo": codigo_final.upper(),
+            "fecha_nacimiento": fecha_nacimiento_parsed,
+            "numero_registro": numero_registro,
+            "color_placa": color_placa,
+            "ubicacion_placa": ubicacion_placa,
+            "raza_id": raza_id,
+            "peso": peso,
+            "altura": altura,
+            "color": color,
+            "estado": estado,
+            "procedencia": procedencia,
+            "notas": notas,
+            "color_patas": color_patas,
+            "color_plumaje": color_plumaje,
+            "criador": criador,
+            "propietario_actual": propietario_actual,
+            "observaciones": observaciones,
+            "padre_id": padre_id,
+            "madre_id": madre_id,
+            "id_gallo_genealogico": id_gallo_genealogico
+        }
+        print(f"🔍 DEBUG PUT - Parámetros a actualizar: raza_id='{params_to_update['raza_id']}'")
+        
         # ACTUALIZAR GALLO PRINCIPAL CON TODOS LOS CAMPOS
         update_gallo = text("""
             UPDATE gallos SET 
@@ -831,31 +878,13 @@ async def update_gallo_con_expansion(
             WHERE id = :id AND user_id = :user_id
         """)
         
-        db.execute(update_gallo, {
-            "id": gallo_id,
-            "user_id": current_user_id,
-            "nombre": nombre,
-            "codigo": codigo_final.upper(),
-            "fecha_nacimiento": fecha_nacimiento_parsed,
-            "numero_registro": numero_registro,
-            "color_placa": color_placa,
-            "ubicacion_placa": ubicacion_placa,
-            "raza_id": raza_id,
-            "peso": peso,
-            "altura": altura,
-            "color": color,
-            "estado": estado,
-            "procedencia": procedencia,
-            "notas": notas,
-            "color_patas": color_patas,
-            "color_plumaje": color_plumaje,
-            "criador": criador,
-            "propietario_actual": propietario_actual,
-            "observaciones": observaciones,
-            "padre_id": padre_id,
-            "madre_id": madre_id,
-            "id_gallo_genealogico": id_gallo_genealogico
-        })
+        try:
+            result_update = db.execute(update_gallo, params_to_update)
+            print(f"✅ DEBUG PUT - UPDATE ejecutado exitosamente")
+            print(f"🔍 DEBUG PUT - Filas afectadas: {result_update.rowcount}")
+        except Exception as update_error:
+            print(f"❌ DEBUG PUT - ERROR EN UPDATE: {update_error}")
+            raise
         
         # 🔍 DEBUG: Verificar qué se actualizó en la base de datos
         debug_query = text("SELECT id, nombre, raza_id FROM gallos WHERE id = :id")
