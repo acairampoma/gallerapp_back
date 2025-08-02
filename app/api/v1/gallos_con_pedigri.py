@@ -182,6 +182,9 @@ async def create_gallo_con_pedigri(
             except:
                 pass
         
+        # 🔍 DEBUG: Verificar qué valor tiene raza_id
+        print(f"🔍 DEBUG POST - raza_id recibido: '{raza_id}' (tipo: {type(raza_id)})")
+        
         # Insertar gallo principal PRIMERO (sin padres aún)
         # Usar numero_registro como codigo si está disponible, sino usar codigo_identificacion
         codigo_final = numero_registro or codigo_identificacion
@@ -225,6 +228,12 @@ async def create_gallo_con_pedigri(
         
         gallo_row = result_gallo.fetchone()
         gallo_principal_id = gallo_row.id
+        
+        # 🔍 DEBUG: Verificar qué se guardó en la base de datos
+        debug_query = text("SELECT id, nombre, raza_id FROM gallos WHERE id = :id")
+        debug_result = db.execute(debug_query, {"id": gallo_principal_id})
+        debug_gallo = debug_result.fetchone()
+        print(f"🔍 DEBUG POST - Gallo guardado: ID={debug_gallo.id}, nombre='{debug_gallo.nombre}', raza_id='{debug_gallo.raza_id}'")
         
         # 🔥 EL ID GENEALÓGICO ES EL ID DEL GALLO PRINCIPAL
         id_gallo_genealogico = gallo_principal_id
@@ -579,6 +588,9 @@ async def update_gallo_con_expansion(
             except:
                 pass
         
+        # 🔍 DEBUG: Verificar qué valor tiene raza_id en PUT
+        print(f"🔍 DEBUG PUT - raza_id recibido: '{raza_id}' (tipo: {type(raza_id)})")
+        
         # Usar numero_registro como codigo si está disponible, sino usar codigo_identificacion
         codigo_final = numero_registro or codigo_identificacion
         
@@ -844,6 +856,12 @@ async def update_gallo_con_expansion(
             "madre_id": madre_id,
             "id_gallo_genealogico": id_gallo_genealogico
         })
+        
+        # 🔍 DEBUG: Verificar qué se actualizó en la base de datos
+        debug_query = text("SELECT id, nombre, raza_id FROM gallos WHERE id = :id")
+        debug_result = db.execute(debug_query, {"id": gallo_id})
+        debug_gallo = debug_result.fetchone()
+        print(f"🔍 DEBUG PUT - Gallo actualizado: ID={debug_gallo.id}, nombre='{debug_gallo.nombre}', raza_id='{debug_gallo.raza_id}'")
         
         registros_actualizados.append({
             "tipo": "gallo_principal_actualizado",
