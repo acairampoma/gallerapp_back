@@ -104,7 +104,7 @@ async def create_gallo_con_pedigri(
     numero_registro: Optional[str] = Form(None),  # NUEVO CAMPO
     color_placa: Optional[str] = Form(None),      # NUEVO CAMPO
     ubicacion_placa: Optional[str] = Form(None),  # NUEVO CAMPO
-    raza_id: Optional[int] = Form(None),
+    raza_id: Optional[str] = Form(None),  # Cambiado a varchar
     peso: Optional[float] = Form(None),
     altura: Optional[int] = Form(None),
     color: Optional[str] = Form(None),
@@ -129,7 +129,7 @@ async def create_gallo_con_pedigri(
     padre_color_placa: Optional[str] = Form(None),       # NUEVO CAMPO
     padre_ubicacion_placa: Optional[str] = Form(None),   # NUEVO CAMPO
     padre_codigo: Optional[str] = Form(None), 
-    padre_raza_id: Optional[int] = Form(None),
+    padre_raza_id: Optional[str] = Form(None),  # Cambiado a varchar
     padre_color: Optional[str] = Form(None),
     padre_peso: Optional[float] = Form(None),
     padre_procedencia: Optional[str] = Form(None),
@@ -143,7 +143,7 @@ async def create_gallo_con_pedigri(
     madre_color_placa: Optional[str] = Form(None),       # NUEVO CAMPO
     madre_ubicacion_placa: Optional[str] = Form(None),   # NUEVO CAMPO
     madre_codigo: Optional[str] = Form(None),
-    madre_raza_id: Optional[int] = Form(None), 
+    madre_raza_id: Optional[str] = Form(None),  # Cambiado a varchar 
     madre_color: Optional[str] = Form(None),
     madre_peso: Optional[float] = Form(None),
     madre_procedencia: Optional[str] = Form(None),
@@ -486,7 +486,7 @@ async def update_gallo_con_expansion(
     numero_registro: Optional[str] = Form(None),  # NUEVO CAMPO
     color_placa: Optional[str] = Form(None),      # NUEVO CAMPO
     ubicacion_placa: Optional[str] = Form(None),  # NUEVO CAMPO
-    raza_id: Optional[int] = Form(None),
+    raza_id: Optional[str] = Form(None),  # Cambiado a varchar
     peso: Optional[float] = Form(None),
     altura: Optional[int] = Form(None),
     color: Optional[str] = Form(None),
@@ -511,7 +511,7 @@ async def update_gallo_con_expansion(
     padre_color_placa: Optional[str] = Form(None),       # NUEVO CAMPO
     padre_ubicacion_placa: Optional[str] = Form(None),   # NUEVO CAMPO
     padre_codigo: Optional[str] = Form(None), 
-    padre_raza_id: Optional[int] = Form(None),
+    padre_raza_id: Optional[str] = Form(None),  # Cambiado a varchar
     padre_color: Optional[str] = Form(None),
     padre_peso: Optional[float] = Form(None),
     padre_procedencia: Optional[str] = Form(None),
@@ -525,7 +525,7 @@ async def update_gallo_con_expansion(
     madre_color_placa: Optional[str] = Form(None),       # NUEVO CAMPO
     madre_ubicacion_placa: Optional[str] = Form(None),   # NUEVO CAMPO
     madre_codigo: Optional[str] = Form(None),
-    madre_raza_id: Optional[int] = Form(None), 
+    madre_raza_id: Optional[str] = Form(None),  # Cambiado a varchar 
     madre_color: Optional[str] = Form(None),
     madre_peso: Optional[float] = Form(None),
     madre_procedencia: Optional[str] = Form(None),

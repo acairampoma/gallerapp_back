@@ -12,7 +12,7 @@ class Gallo(Base):
     # ========================
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    raza_id = Column(Integer, ForeignKey("razas.id"), nullable=True)
+    raza_id = Column(String(100), nullable=True)  # Cambiado de FK a varchar
     
     # ========================
     # 🐓 INFORMACIÓN DEL GALLO
@@ -63,8 +63,7 @@ class Gallo(Base):
     # ========================
     # 🔗 RELACIONES SQLALCHEMY
     # ========================
-    # Relación con raza
-    raza = relationship("Raza", foreign_keys=[raza_id])
+    # Relación con raza removida - ahora raza_id es varchar libre
     
     # 🧬 Relaciones genealógicas (auto-referencia)
     padre = relationship(
