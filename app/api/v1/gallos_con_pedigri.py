@@ -104,7 +104,7 @@ async def create_gallo_con_pedigri(
     numero_registro: Optional[str] = Form(None),  # NUEVO CAMPO
     color_placa: Optional[str] = Form(None),      # NUEVO CAMPO
     ubicacion_placa: Optional[str] = Form(None),  # NUEVO CAMPO
-    raza_id: Optional[str] = Form("TEST_RAZA_DEFAULT", description="ID o nombre de la raza del gallo"),
+    raza_id: Optional[str] = Form(None, description="ID o nombre de la raza del gallo"),
     peso: Optional[float] = Form(None),
     altura: Optional[int] = Form(None),
     color: Optional[str] = Form(None),
@@ -509,7 +509,7 @@ async def update_gallo_con_expansion(
     numero_registro: Optional[str] = Form(None),  # NUEVO CAMPO
     color_placa: Optional[str] = Form(None),      # NUEVO CAMPO
     ubicacion_placa: Optional[str] = Form(None),  # NUEVO CAMPO
-    raza_id: Optional[str] = Form("TEST_RAZA_DEFAULT", description="ID o nombre de la raza del gallo"),
+    raza_id: Optional[str] = Form(None, description="ID o nombre de la raza del gallo"),
     peso: Optional[float] = Form(None),
     altura: Optional[int] = Form(None),
     color: Optional[str] = Form(None),
