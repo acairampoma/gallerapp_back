@@ -19,16 +19,24 @@ from app.api.v1 import auth, profiles
 try:
     from app.api.v1.gallos_con_pedigri import router as gallos_pedigri_router
     from app.api.v1.fotos_final import router as fotos_router
-    from app.api.v1.razas_simple import router as razas_router 
+    from app.api.v1.razas_simple import router as razas_router
     print("🔥 ¡ENDPOINTS LIMPIOS CARGADOS EXITOSAMENTE!")
     print("   - ✅ Gallos con pedigrí genealógico")
     print("   - ✅ Fotos estructura simple")
     print("   - ✅ Razas básicas")
 except ImportError as e:
-    print(f"❌ Error importando endpoints: {e}")
+    print(f"❌ Error importando endpoints principales: {e}")
     gallos_pedigri_router = None
     fotos_router = None
     razas_router = None
+
+# Cargar vacunas
+try:
+    from app.api.v1.vacunas import router as vacunas_router
+    print("   - ✅ Vacunas y control sanitario")
+except ImportError as e:
+    print(f"⚠️ Vacunas no disponible: {e}")
+    vacunas_router = None
 
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
@@ -125,6 +133,14 @@ if razas_router:
     )
     print("✅ Router de razas activado")
 
+if vacunas_router:
+    app.include_router(
+        vacunas_router,
+        prefix="/api/v1/vacunas",
+        tags=["💉 Vacunas"]
+    )
+    print("✅ Router de vacunas activado")
+
 # 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 
 # 🏠 ENDPOINTS BÁSICOS
@@ -151,6 +167,7 @@ async def root():
             "gallos_pedigri": "/api/v1/gallos" if gallos_pedigri_router else "NO DISPONIBLE",
             "fotos": "/api/v1/gallos/{id}/foto" if fotos_router else "NO DISPONIBLE",
             "razas": "/api/v1/razas" if razas_router else "NO DISPONIBLE",
+            "vacunas": "/api/v1/vacunas" if vacunas_router else "NO DISPONIBLE",
             "genealogia": "/api/v1/gallos/con-pedigri" if gallos_pedigri_router else "NO DISPONIBLE",
             "test_db": "/test-db",
             "test_cloudinary": "/test-cloudinary",
