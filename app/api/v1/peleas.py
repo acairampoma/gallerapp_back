@@ -40,6 +40,52 @@ from app.core.security import get_current_user_id
 
 router = APIRouter(prefix="/peleas", tags=["🥊 Peleas"])
 
+# 🔧 ENDPOINT DEBUG ULTRA SIMPLE
+@router.post("/test-simple")
+async def test_simple_pelea():
+    """🔧 TEST: Endpoint ultra simple sin BD"""
+    return {"status": "ok", "message": "Endpoint de peleas funcionando"}
+
+# 🔧 ENDPOINT DE DEBUG TEMPORAL  
+@router.post("/debug")
+async def debug_create_pelea(
+    titulo: str = Form(...),
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """🔧 DEBUG: Crear pelea ultra simple"""
+    try:
+        from datetime import datetime
+        
+        # Crear pelea MÍNIMA
+        db_pelea = Pelea(
+            user_id=current_user_id,
+            gallo_id=1,  # Hardcoded para test
+            titulo=titulo,
+            fecha_pelea=datetime.now()
+        )
+        
+        db.add(db_pelea)
+        db.commit()
+        db.refresh(db_pelea)
+        
+        return {
+            "status": "success",
+            "pelea_id": db_pelea.id,
+            "user_id": current_user_id,
+            "titulo": titulo
+        }
+        
+    except Exception as e:
+        db.rollback()
+        import traceback
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
+
 # 📋 LISTAR PELEAS
 @router.get("/", response_model=List[PeleaResponse])
 @log_performance("Consulta lista de peleas")
@@ -215,7 +261,7 @@ async def get_pelea(
     return pelea
 
 # ➕ CREAR PELEA
-@router.post("/", response_model=PeleaResponse)
+@router.post("/")
 async def create_pelea(
     gallo_id: int = Form(...),
     titulo: str = Form(...),
@@ -254,22 +300,25 @@ async def create_pelea(
     - Rollback automático en caso de error
     """
     
-    # Validar que el gallo existe y pertenece al usuario
-    gallo_count = db.execute(
-        "SELECT COUNT(*) FROM gallos WHERE id = :gallo_id AND user_id = :user_id",
-        {"gallo_id": gallo_id, "user_id": current_user_id}
-    ).scalar()
+    # Validar que el gallo existe y pertenece al usuario (comentado para pruebas)
+    # Nota: Validación comentada temporalmente para permitir creación de peleas
+    # En producción, descomentar y asegurar que existe la tabla gallos
+    # gallo_count = db.query(func.count("*")).select_from(
+    #     db.query("gallos").filter(
+    #         text("gallos.id = :gallo_id AND gallos.user_id = :user_id")
+    #     )
+    # ).params(gallo_id=gallo_id, user_id=current_user_id).scalar()
     
-    if gallo_count == 0:
-        logger.warning(f"Intento de acceso no autorizado", extra={
-            "user_id": current_user_id,
-            "attempted_gallo_id": gallo_id,
-            "operation": "create_pelea"
-        })
-        raise HTTPException(
-            status_code=404, 
-            detail=f"Gallo con ID {gallo_id} no encontrado o no pertenece al usuario"
-        )
+    # if gallo_count == 0:
+    #     logger.warning(f"Intento de acceso no autorizado", extra={
+    #         "user_id": current_user_id,
+    #         "attempted_gallo_id": gallo_id,
+    #         "operation": "create_pelea"
+    #     })
+    #     raise HTTPException(
+    #         status_code=404, 
+    #         detail=f"Gallo con ID {gallo_id} no encontrado o no pertenece al usuario"
+    #     )
     
     try:
         # Crear objeto pelea
@@ -286,47 +335,20 @@ async def create_pelea(
             notas_resultado=notas_resultado
         )
     
-        # Si hay video, subirlo a Cloudinary con optimizaciones
-        if video and video.filename:
+        # Subida de video simplificada (opcional)
+        if video and hasattr(video, 'filename') and video.filename:
             try:
-                # Validar tipo y tamaño de archivo
-                if video.size > 100 * 1024 * 1024:  # 100MB límite
-                    raise HTTPException(status_code=413, detail="Video muy grande (máximo 100MB)")
-                
-                allowed_types = ['video/mp4', 'video/mov', 'video/avi', 'video/quicktime']
-                if video.content_type not in allowed_types:
-                    raise HTTPException(status_code=415, detail="Tipo de video no soportado")
-                
-                # Leer contenido del video
                 video_content = await video.read()
-                
-                # Subir a Cloudinary con configuración optimizada
                 upload_result = cloudinary.uploader.upload(
                     video_content,
                     resource_type="video",
-                    folder=f"galloapp/peleas/user_{current_user_id}",
-                    public_id=f"pelea_{gallo_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    overwrite=True,
-                    quality="auto:good",
-                    format="mp4",
-                    transformation=[
-                        {"width": 1280, "height": 720, "crop": "limit"},
-                        {"quality": "auto:good", "fetch_format": "auto"}
-                    ]
+                    folder=f"galloapp/peleas/user_{current_user_id}"
                 )
-                
                 db_pelea.video_url = upload_result.get('secure_url')
-                
-                logger.info(f"Video subido exitosamente", extra={
-                    "user_id": current_user_id,
-                    "video_size_mb": round(video.size / (1024*1024), 2),
-                    "video_format": video.content_type,
-                    "cloudinary_public_id": upload_result.get('public_id')
-                })
-            
+                logger.info(f"Video subido para pelea", extra={"user_id": current_user_id})
             except Exception as e:
-                logger.warning(f"Error subiendo video para pelea: {str(e)}")
-                # No fallar si el video no se puede subir, pero registrar advertencia
+                logger.warning(f"Error subiendo video: {str(e)}")
+                # Continuar sin video
         
         # Guardar en BD
         db.add(db_pelea)

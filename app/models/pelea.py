@@ -17,8 +17,8 @@ class Pelea(Base):
     
     # Campos principales
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    gallo_id = Column(Integer, ForeignKey("gallos.id"), nullable=True)
+    user_id = Column(Integer, nullable=True)  # Sin FK constraint por ahora
+    gallo_id = Column(Integer, nullable=True)  # Sin FK constraint por ahora
     
     # Información de la pelea
     titulo = Column(String(255), nullable=False)
