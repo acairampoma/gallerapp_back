@@ -387,7 +387,7 @@ async def create_pelea(
         )
 
 # ✏️ ACTUALIZAR PELEA
-@router.put("/{pelea_id}", response_model=PeleaResponse)
+@router.put("/{pelea_id}")
 async def update_pelea(
     pelea_id: int,
     titulo: Optional[str] = Form(None),
