@@ -15,6 +15,8 @@ from app.models.raza_simple import Raza
 from app.models.profile import Profile
 from app.models.gallo_simple import Gallo
 # from app.models.vacuna import Vacuna  # TEMPORALMENTE COMENTADO
+from app.models.pelea import Pelea
+from app.models.tope import Tope
 
 # Lista de todos los modelos disponibles
 __all__ = [
@@ -24,6 +26,8 @@ __all__ = [
     "Raza",
     "Gallo",
     # "Vacuna"  # TEMPORALMENTE COMENTADO
+    "Pelea",
+    "Tope"
 ]
 
 def create_all_tables(engine):
@@ -39,4 +43,6 @@ def get_all_models():
         'Raza': Raza,
         'Gallo': Gallo,
         # 'Vacuna': Vacuna  # TEMPORALMENTE COMENTADO
+        'Pelea': Pelea,
+        'Tope': Tope
     }

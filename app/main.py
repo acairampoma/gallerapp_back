@@ -38,6 +38,22 @@ except ImportError as e:
     print(f"⚠️ Vacunas no disponible: {e}")
     vacunas_router = None
 
+# 🥊 Cargar peleas
+try:
+    from app.api.v1.peleas import router as peleas_router
+    print("   - ✅ Peleas y combates")
+except ImportError as e:
+    print(f"⚠️ Peleas no disponible: {e}")
+    peleas_router = None
+
+# 🏋️ Cargar topes
+try:
+    from app.api.v1.topes import router as topes_router
+    print("   - ✅ Topes y entrenamientos")
+except ImportError as e:
+    print(f"⚠️ Topes no disponible: {e}")
+    topes_router = None
+
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
     
@@ -140,6 +156,22 @@ if vacunas_router:
         tags=["💉 Vacunas"]
     )
     print("✅ Router de vacunas activado")
+
+if peleas_router:
+    app.include_router(
+        peleas_router,
+        prefix="/api/v1",
+        tags=["🥊 Peleas"]
+    )
+    print("✅ Router de peleas activado")
+
+if topes_router:
+    app.include_router(
+        topes_router,
+        prefix="/api/v1",
+        tags=["🏋️ Topes"]
+    )
+    print("✅ Router de topes activado")
 
 # 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 
