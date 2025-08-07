@@ -254,47 +254,20 @@ async def create_tope(
             observaciones=observaciones
         )
     
-        # Si hay video, subirlo a Cloudinary con optimizaciones
-        if video and video.filename:
+        # Subida de video simplificada (opcional) - IGUAL QUE PELEAS
+        if video and hasattr(video, 'filename') and video.filename:
             try:
-                # Validar tipo y tamaño de archivo
-                if video.size > 100 * 1024 * 1024:  # 100MB límite
-                    raise HTTPException(status_code=413, detail="Video muy grande (máximo 100MB)")
-                
-                allowed_types = ['video/mp4', 'video/mov', 'video/avi', 'video/quicktime']
-                if video.content_type not in allowed_types:
-                    raise HTTPException(status_code=415, detail="Tipo de video no soportado")
-                
-                # Leer contenido del video
                 video_content = await video.read()
-                
-                # Subir a Cloudinary con configuración optimizada
                 upload_result = cloudinary.uploader.upload(
                     video_content,
                     resource_type="video",
-                    folder=f"galloapp/topes/user_{current_user_id}",
-                    public_id=f"tope_{gallo_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    overwrite=True,
-                    quality="auto:good",
-                    format="mp4",
-                    transformation=[
-                        {"width": 1280, "height": 720, "crop": "limit"},
-                        {"quality": "auto:good", "fetch_format": "auto"}
-                    ]
+                    folder=f"galloapp/topes/user_{current_user_id}"
                 )
-                
                 db_tope.video_url = upload_result.get('secure_url')
-                
-                logger.info(f"Video subido exitosamente", extra={
-                    "user_id": current_user_id,
-                    "video_size_mb": round(video.size / (1024*1024), 2),
-                    "video_format": video.content_type,
-                    "cloudinary_public_id": upload_result.get('public_id')
-                })
-            
+                logger.info(f"Video subido para tope", extra={"user_id": current_user_id})
             except Exception as e:
-                logger.warning(f"Error subiendo video para tope: {str(e)}")
-                # No fallar si el video no se puede subir, pero registrar advertencia
+                logger.warning(f"Error subiendo video: {str(e)}")
+                # Continuar sin video
         
         # Guardar en BD
         db.add(db_tope)
