@@ -1,18 +1,18 @@
-# 🥊 Modelo de Peleas
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum
+# 🥊 Modelo de Peleas - CORREGIDO para BD existente
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime
 import enum
 
 class ResultadoPelea(enum.Enum):
-    """Enum para resultados de peleas"""
+    """Enum para resultados de peleas (solo para validación)"""
     GANADA = "ganada"
     PERDIDA = "perdida"
     EMPATE = "empate"
 
 class Pelea(Base):
-    """Modelo para registro de peleas de gallos"""
+    """Modelo para registro de peleas de gallos - COINCIDE CON BD POSTGRESQL"""
     __tablename__ = "peleas"
     
     # Campos principales
@@ -27,20 +27,20 @@ class Pelea(Base):
     ubicacion = Column(String(255), nullable=True)
     
     # Información del oponente
-    oponente_nombre = Column(String(255), nullable=True)  # Nombre del dueño oponente
-    oponente_gallo = Column(String(255), nullable=True)   # Nombre del gallo oponente
+    oponente_nombre = Column(String(255), nullable=True)
+    oponente_gallo = Column(String(255), nullable=True)
     
-    # Resultado
-    resultado = Column(Enum(ResultadoPelea), nullable=True)
+    # Resultado - VARCHAR en BD, no ENUM
+    resultado = Column(String(20), nullable=True)  # ← CAMBIADO: String en lugar de Enum
     notas_resultado = Column(Text, nullable=True)
     
     # Video
     video_url = Column(Text, nullable=True)
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Timestamps - EXACTOS como en BD
+    created_at = Column(DateTime, server_default="CURRENT_TIMESTAMP")
+    updated_at = Column(DateTime, server_default="CURRENT_TIMESTAMP", onupdate=datetime.utcnow)
     
-    # Relaciones
-    user = relationship("User", backref="peleas")
-    gallo = relationship("Gallo", backref="peleas")
+    # Relaciones (opcionales por si las necesitamos)
+    # user = relationship("User", backref="peleas")
+    # gallo = relationship("Gallo", backref="peleas")

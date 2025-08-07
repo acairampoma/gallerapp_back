@@ -1,26 +1,40 @@
-# 🥊 Schemas para Peleas
-from pydantic import BaseModel, Field
+# 🥊 Schemas para Peleas - MEJORES PRÁCTICAS
+from pydantic import BaseModel, Field, validator
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 
 class ResultadoPeleaEnum(str, Enum):
     """Enum para resultados de peleas"""
     GANADA = "ganada"
-    PERDIDA = "perdida"
+    PERDIDA = "perdida" 
     EMPATE = "empate"
 
 class PeleaBase(BaseModel):
-    """Schema base para peleas"""
-    gallo_id: int
-    titulo: str = Field(..., min_length=1, max_length=255)
-    descripcion: Optional[str] = None
-    fecha_pelea: datetime
-    ubicacion: Optional[str] = Field(None, max_length=255)
-    oponente_nombre: Optional[str] = Field(None, max_length=255)
-    oponente_gallo: Optional[str] = Field(None, max_length=255)
-    resultado: Optional[ResultadoPeleaEnum] = None
-    notas_resultado: Optional[str] = None
+    """Schema base para peleas con validaciones mejoradas"""
+    gallo_id: int = Field(..., gt=0, description="ID del gallo (debe ser positivo)")
+    titulo: str = Field(..., min_length=3, max_length=255, description="Título de la pelea")
+    descripcion: Optional[str] = Field(None, max_length=1000, description="Descripción detallada")
+    fecha_pelea: datetime = Field(..., description="Fecha y hora de la pelea")
+    ubicacion: Optional[str] = Field(None, min_length=2, max_length=255, description="Lugar de la pelea")
+    oponente_nombre: Optional[str] = Field(None, min_length=2, max_length=255, description="Nombre del oponente")
+    oponente_gallo: Optional[str] = Field(None, min_length=2, max_length=255, description="Nombre del gallo oponente")
+    resultado: Optional[ResultadoPeleaEnum] = Field(None, description="Resultado de la pelea")
+    notas_resultado: Optional[str] = Field(None, max_length=2000, description="Notas del resultado")
+
+    @validator('fecha_pelea')
+    def validar_fecha_pelea(cls, v):
+        """La fecha no puede ser muy futura (máximo 1 año)"""
+        if v > datetime.now().replace(year=datetime.now().year + 1):
+            raise ValueError('La fecha de pelea no puede ser más de 1 año en el futuro')
+        return v
+    
+    @validator('titulo')
+    def validar_titulo(cls, v):
+        """Título no puede ser solo espacios"""
+        if not v.strip():
+            raise ValueError('El título no puede estar vacío')
+        return v.strip()
 
 class PeleaCreate(PeleaBase):
     """Schema para crear pelea"""

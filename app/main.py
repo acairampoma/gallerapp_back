@@ -160,16 +160,16 @@ if vacunas_router:
 if peleas_router:
     app.include_router(
         peleas_router,
-        prefix="/api/v1",
-        tags=["🥊 Peleas"]
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
     )
     print("✅ Router de peleas activado")
 
 if topes_router:
     app.include_router(
         topes_router,
-        prefix="/api/v1",
-        tags=["🏋️ Topes"]
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router  
     )
     print("✅ Router de topes activado")
 

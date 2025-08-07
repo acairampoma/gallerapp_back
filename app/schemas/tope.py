@@ -1,7 +1,7 @@
-# 🏋️ Schemas para Topes
-from pydantic import BaseModel, Field
+# 🏋️ Schemas para Topes - MEJORES PRÁCTICAS
+from pydantic import BaseModel, Field, validator
 from typing import Optional, Dict
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 
 class TipoEntrenamientoEnum(str, Enum):
@@ -12,29 +12,77 @@ class TipoEntrenamientoEnum(str, Enum):
     VELOCIDAD = "velocidad"
 
 class TopeBase(BaseModel):
-    """Schema base para topes"""
-    gallo_id: int
-    titulo: str = Field(..., min_length=1, max_length=255)
-    descripcion: Optional[str] = None
-    fecha_tope: datetime
-    ubicacion: Optional[str] = Field(None, max_length=255)
-    duracion_minutos: Optional[int] = Field(None, ge=1, le=300)
-    tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = None
-    observaciones: Optional[str] = None
+    """Schema base para topes con validaciones mejoradas"""
+    gallo_id: int = Field(..., gt=0, description="ID del gallo (debe ser positivo)")
+    titulo: str = Field(..., min_length=3, max_length=255, description="Título del tope/entrenamiento")
+    descripcion: Optional[str] = Field(None, max_length=1000, description="Descripción detallada del entrenamiento")
+    fecha_tope: datetime = Field(..., description="Fecha y hora del tope")
+    ubicacion: Optional[str] = Field(None, min_length=2, max_length=255, description="Lugar del entrenamiento")
+    duracion_minutos: Optional[int] = Field(None, ge=5, le=480, description="Duración en minutos (5-480 min)")
+    tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = Field(None, description="Tipo de entrenamiento")
+    observaciones: Optional[str] = Field(None, max_length=2000, description="Observaciones del entrenamiento")
+
+    @validator('fecha_tope')
+    def validar_fecha_tope(cls, v):
+        """La fecha no puede ser muy futura (máximo 1 año)"""
+        if v > datetime.now().replace(year=datetime.now().year + 1):
+            raise ValueError('La fecha del tope no puede ser más de 1 año en el futuro')
+        return v
+    
+    @validator('titulo')
+    def validar_titulo(cls, v):
+        """Título no puede ser solo espacios"""
+        if not v.strip():
+            raise ValueError('El título no puede estar vacío')
+        return v.strip()
+    
+    @validator('ubicacion')
+    def validar_ubicacion(cls, v):
+        """Ubicación no puede ser solo espacios"""
+        if v and not v.strip():
+            raise ValueError('La ubicación no puede estar vacía')
+        return v.strip() if v else v
+    
+    @validator('duracion_minutos')
+    def validar_duracion(cls, v):
+        """Duración debe ser razonable"""
+        if v is not None and v < 5:
+            raise ValueError('La duración mínima es de 5 minutos')
+        if v is not None and v > 480:  # 8 horas máximo
+            raise ValueError('La duración máxima es de 8 horas (480 minutos)')
+        return v
 
 class TopeCreate(TopeBase):
     """Schema para crear tope"""
     pass
 
 class TopeUpdate(BaseModel):
-    """Schema para actualizar tope"""
-    titulo: Optional[str] = Field(None, min_length=1, max_length=255)
-    descripcion: Optional[str] = None
-    fecha_tope: Optional[datetime] = None
-    ubicacion: Optional[str] = Field(None, max_length=255)
-    duracion_minutos: Optional[int] = Field(None, ge=1, le=300)
-    tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = None
-    observaciones: Optional[str] = None
+    """Schema para actualizar tope con validaciones"""
+    titulo: Optional[str] = Field(None, min_length=3, max_length=255, description="Título del tope")
+    descripcion: Optional[str] = Field(None, max_length=1000, description="Descripción del entrenamiento")
+    fecha_tope: Optional[datetime] = Field(None, description="Fecha y hora del tope")
+    ubicacion: Optional[str] = Field(None, min_length=2, max_length=255, description="Lugar del entrenamiento")
+    duracion_minutos: Optional[int] = Field(None, ge=5, le=480, description="Duración en minutos")
+    tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = Field(None, description="Tipo de entrenamiento")
+    observaciones: Optional[str] = Field(None, max_length=2000, description="Observaciones")
+
+    @validator('titulo')
+    def validar_titulo(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError('El título no puede estar vacío')
+        return v.strip() if v else v
+    
+    @validator('ubicacion')
+    def validar_ubicacion(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError('La ubicación no puede estar vacía')
+        return v.strip() if v else v
+    
+    @validator('fecha_tope')
+    def validar_fecha_tope(cls, v):
+        if v is not None and v > datetime.now().replace(year=datetime.now().year + 1):
+            raise ValueError('La fecha del tope no puede ser más de 1 año en el futuro')
+        return v
 
 class TopeResponse(TopeBase):
     """Schema para respuesta de tope"""
