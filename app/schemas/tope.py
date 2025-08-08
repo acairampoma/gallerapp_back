@@ -1,6 +1,6 @@
 # 🏋️ Schemas para Topes - MEJORES PRÁCTICAS
 from pydantic import BaseModel, Field, validator
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from datetime import datetime, date
 from enum import Enum
 
@@ -10,6 +10,13 @@ class TipoEntrenamientoEnum(str, Enum):
     TECNICA = "tecnica"
     RESISTENCIA = "resistencia"
     VELOCIDAD = "velocidad"
+
+class TipoEvaluacionEnum(str, Enum):
+    """Enum para evaluación de desempeño"""
+    EXCELENTE = "Excelente desempeño"
+    BUENO = "Buen desempeño"
+    REGULAR = "Regular"
+    NECESITA_MEJORAR = "Necesita mejorar"
 
 class TopeBase(BaseModel):
     """Schema base para topes con validaciones mejoradas"""
@@ -21,6 +28,10 @@ class TopeBase(BaseModel):
     duracion_minutos: Optional[int] = Field(None, ge=5, le=480, description="Duración en minutos (5-480 min)")
     tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = Field(None, description="Tipo de entrenamiento")
     des_sparring: Optional[str] = Field(None, max_length=255, description="Descripción de sparring")
+    tipo_resultado: Optional[TipoEvaluacionEnum] = Field(None, description="Evaluación del resultado")
+    tipo_condicion_fisica: Optional[TipoEvaluacionEnum] = Field(None, description="Evaluación de condición física")
+    peso_post_tope: Optional[str] = Field(None, max_length=255, description="Peso después del tope")
+    fecha_proximo: Optional[datetime] = Field(None, description="Fecha del próximo entrenamiento")
     observaciones: Optional[str] = Field(None, max_length=2000, description="Observaciones del entrenamiento")
 
     @validator('fecha_tope')
@@ -66,6 +77,10 @@ class TopeUpdate(BaseModel):
     duracion_minutos: Optional[int] = Field(None, ge=5, le=480, description="Duración en minutos")
     tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = Field(None, description="Tipo de entrenamiento")
     des_sparring: Optional[str] = Field(None, max_length=255, description="Descripción de sparring")
+    tipo_resultado: Optional[TipoEvaluacionEnum] = Field(None, description="Evaluación del resultado")
+    tipo_condicion_fisica: Optional[TipoEvaluacionEnum] = Field(None, description="Evaluación de condición física")
+    peso_post_tope: Optional[str] = Field(None, max_length=255, description="Peso después del tope")
+    fecha_proximo: Optional[datetime] = Field(None, description="Fecha del próximo entrenamiento")
     observaciones: Optional[str] = Field(None, max_length=2000, description="Observaciones")
 
     @validator('titulo')

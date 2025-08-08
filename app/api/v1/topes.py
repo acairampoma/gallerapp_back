@@ -213,6 +213,10 @@ async def create_tope(
     duracion_minutos: Optional[int] = Form(None),
     tipo_entrenamiento: Optional[str] = Form(None),
     des_sparring: Optional[str] = Form(None),
+    tipo_resultado: Optional[str] = Form(None),
+    tipo_condicion_fisica: Optional[str] = Form(None),
+    peso_post_tope: Optional[str] = Form(None),
+    fecha_proximo: Optional[datetime] = Form(None),
     observaciones: Optional[str] = Form(None),
     video: Optional[UploadFile] = File(None),
     current_user_id: int = Depends(get_current_user_id),
@@ -233,6 +237,10 @@ async def create_tope(
     - `duracion_minutos`: Duración en minutos (5-480)
     - `tipo_entrenamiento`: sparring/tecnica/resistencia/velocidad
     - `des_sparring`: Descripción específica de sparring
+    - `tipo_resultado`: Evaluación del resultado (Excelente/Bueno/Regular/Necesita mejorar)
+    - `tipo_condicion_fisica`: Evaluación condición física (Excelente/Bueno/Regular/Necesita mejorar)
+    - `peso_post_tope`: Peso después del entrenamiento
+    - `fecha_proximo`: Fecha del próximo entrenamiento
     - `observaciones`: Notas del entrenamiento
     - `video`: Archivo de video (MP4, MOV, AVI)
     
@@ -254,6 +262,10 @@ async def create_tope(
             duracion_minutos=duracion_minutos,
             tipo_entrenamiento=tipo_entrenamiento,
             des_sparring=des_sparring,
+            tipo_resultado=tipo_resultado,
+            tipo_condicion_fisica=tipo_condicion_fisica,
+            peso_post_tope=peso_post_tope,
+            fecha_proximo=fecha_proximo,
             observaciones=observaciones
         )
     
@@ -312,6 +324,10 @@ async def update_tope(
     duracion_minutos: Optional[int] = Form(None),
     tipo_entrenamiento: Optional[str] = Form(None),
     des_sparring: Optional[str] = Form(None),
+    tipo_resultado: Optional[str] = Form(None),
+    tipo_condicion_fisica: Optional[str] = Form(None),
+    peso_post_tope: Optional[str] = Form(None),
+    fecha_proximo: Optional[datetime] = Form(None),
     observaciones: Optional[str] = Form(None),
     video: Optional[UploadFile] = File(None),
     current_user_id: int = Depends(get_current_user_id),
@@ -361,6 +377,14 @@ async def update_tope(
             tope.tipo_entrenamiento = tipo_entrenamiento
         if des_sparring is not None:
             tope.des_sparring = des_sparring
+        if tipo_resultado is not None:
+            tope.tipo_resultado = tipo_resultado
+        if tipo_condicion_fisica is not None:
+            tope.tipo_condicion_fisica = tipo_condicion_fisica
+        if peso_post_tope is not None:
+            tope.peso_post_tope = peso_post_tope
+        if fecha_proximo is not None:
+            tope.fecha_proximo = fecha_proximo
         if observaciones is not None:
             tope.observaciones = observaciones
         
