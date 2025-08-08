@@ -10,6 +10,10 @@ class TipoEntrenamientoEnum(str, Enum):
     TECNICA = "tecnica"
     RESISTENCIA = "resistencia"
     VELOCIDAD = "velocidad"
+    TOP_ESPUELAS = "top_espuelas"
+    TOP_SIN_ESPUELAS = "top_sin_espuelas"
+    SPARRING_TECNICO = "sparring_tecnico"
+    ACONDICIONAMIENTO_FISICO = "acondicionamiento_fisico"
 
 class TipoEvaluacionEnum(str, Enum):
     """Enum para evaluación de desempeño"""

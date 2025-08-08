@@ -76,7 +76,7 @@ async def get_topes(
         if gallo_id:
             query = query.filter(Tope.gallo_id == gallo_id)
         
-        if tipo_entrenamiento and tipo_entrenamiento in ["sparring", "tecnica", "resistencia", "velocidad"]:
+        if tipo_entrenamiento and tipo_entrenamiento in ["sparring", "tecnica", "resistencia", "velocidad", "top_espuelas", "top_sin_espuelas", "sparring_tecnico", "acondicionamiento_fisico"]:
             query = query.filter(Tope.tipo_entrenamiento == tipo_entrenamiento)
         
         # Ordenar y paginar con límites seguros
@@ -137,7 +137,7 @@ async def get_topes_stats(
         
         # Contar por tipo de entrenamiento - usando strings
         tipos_entrenamiento: Dict[str, int] = {}
-        tipos_validos = ["sparring", "tecnica", "resistencia", "velocidad"]
+        tipos_validos = ["sparring", "tecnica", "resistencia", "velocidad", "top_espuelas", "top_sin_espuelas", "sparring_tecnico", "acondicionamiento_fisico"]
         for tipo in tipos_validos:
             count = db.query(func.count(Tope.id)).filter(
                 Tope.user_id == current_user_id,
@@ -250,7 +250,45 @@ async def create_tope(
     - Rollback automático en caso de error
     """
     
+    # LOG DEBUGGING PARA XMLHttpRequest ERROR
+    logger.info(f"Iniciando creación de tope - Usuario: {current_user_id}")
+    logger.info(f"Parámetros recibidos - gallo_id: {gallo_id}, titulo: '{titulo}', tipo_entrenamiento: '{tipo_entrenamiento}', tipo_resultado: '{tipo_resultado}', tipo_condicion_fisica: '{tipo_condicion_fisica}'")
+    
     try:
+        # VALIDACIONES ESPECÍFICAS PARA EVITAR XMLHttpRequest ERRORS
+        
+        # Validar tipo_entrenamiento si se proporciona
+        if tipo_entrenamiento and tipo_entrenamiento not in ["sparring", "tecnica", "resistencia", "velocidad"]:
+            logger.error(f"tipo_entrenamiento inválido: {tipo_entrenamiento}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"tipo_entrenamiento debe ser uno de: sparring, tecnica, resistencia, velocidad. Recibido: {tipo_entrenamiento}"
+            )
+        
+        # Validar tipo_resultado si se proporciona
+        if tipo_resultado and tipo_resultado not in ["Excelente", "Bueno", "Regular", "Necesita mejorar"]:
+            logger.error(f"tipo_resultado inválido: {tipo_resultado}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"tipo_resultado debe ser uno de: Excelente, Bueno, Regular, Necesita mejorar. Recibido: {tipo_resultado}"
+            )
+        
+        # Validar tipo_condicion_fisica si se proporciona
+        if tipo_condicion_fisica and tipo_condicion_fisica not in ["Excelente", "Bueno", "Regular", "Necesita mejorar"]:
+            logger.error(f"tipo_condicion_fisica inválido: {tipo_condicion_fisica}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"tipo_condicion_fisica debe ser uno de: Excelente, Bueno, Regular, Necesita mejorar. Recibido: {tipo_condicion_fisica}"
+            )
+        
+        # Validar duración si se proporciona
+        if duracion_minutos is not None and (duracion_minutos < 5 or duracion_minutos > 480):
+            logger.error(f"duracion_minutos inválida: {duracion_minutos}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"duracion_minutos debe estar entre 5 y 480 minutos. Recibido: {duracion_minutos}"
+            )
+        
         # Crear objeto tope
         db_tope = Tope(
             user_id=current_user_id,
@@ -285,15 +323,24 @@ async def create_tope(
                 # Continuar sin video
         
         # Guardar en BD
+        logger.info(f"Guardando tope en BD para usuario {current_user_id}")
         db.add(db_tope)
         db.commit()
         db.refresh(db_tope)
         
+        logger.info(f"Tope creado exitosamente - ID: {db_tope.id}")
         return db_tope
     
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Error de integridad al crear tope: {str(e)}")
+        
+        # Errores específicos de integridad más informativos
+        if "foreign key constraint" in str(e).lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error: gallo_id={gallo_id} no existe o no pertenece al usuario."
+            )
         raise HTTPException(
             status_code=400,
             detail="Error de integridad en los datos. Verifique las referencias."
