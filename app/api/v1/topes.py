@@ -258,27 +258,27 @@ async def create_tope(
         # VALIDACIONES ESPECÍFICAS PARA EVITAR XMLHttpRequest ERRORS
         
         # Validar tipo_entrenamiento si se proporciona
-        if tipo_entrenamiento and tipo_entrenamiento not in ["sparring", "tecnica", "resistencia", "velocidad"]:
+        if tipo_entrenamiento and tipo_entrenamiento not in ["sparring", "tecnica", "resistencia", "velocidad", "top_espuelas", "top_sin_espuelas", "sparring_tecnico", "acondicionamiento_fisico"]:
             logger.error(f"tipo_entrenamiento inválido: {tipo_entrenamiento}")
             raise HTTPException(
                 status_code=400,
-                detail=f"tipo_entrenamiento debe ser uno de: sparring, tecnica, resistencia, velocidad. Recibido: {tipo_entrenamiento}"
+                detail=f"tipo_entrenamiento debe ser uno de: sparring, tecnica, resistencia, velocidad, top_espuelas, top_sin_espuelas, sparring_tecnico, acondicionamiento_fisico. Recibido: {tipo_entrenamiento}"
             )
         
         # Validar tipo_resultado si se proporciona
-        if tipo_resultado and tipo_resultado not in ["Excelente", "Bueno", "Regular", "Necesita mejorar"]:
+        if tipo_resultado and tipo_resultado not in ["excelente_desempeno", "buen_desempeno", "regular", "necesita_mejorar"]:
             logger.error(f"tipo_resultado inválido: {tipo_resultado}")
             raise HTTPException(
                 status_code=400,
-                detail=f"tipo_resultado debe ser uno de: Excelente, Bueno, Regular, Necesita mejorar. Recibido: {tipo_resultado}"
+                detail=f"tipo_resultado debe ser uno de: excelente_desempeno, buen_desempeno, regular, necesita_mejorar. Recibido: {tipo_resultado}"
             )
         
         # Validar tipo_condicion_fisica si se proporciona
-        if tipo_condicion_fisica and tipo_condicion_fisica not in ["Excelente", "Bueno", "Regular", "Necesita mejorar"]:
+        if tipo_condicion_fisica and tipo_condicion_fisica not in ["excelente_desempeno", "buen_desempeno", "regular", "necesita_mejorar"]:
             logger.error(f"tipo_condicion_fisica inválido: {tipo_condicion_fisica}")
             raise HTTPException(
                 status_code=400,
-                detail=f"tipo_condicion_fisica debe ser uno de: Excelente, Bueno, Regular, Necesita mejorar. Recibido: {tipo_condicion_fisica}"
+                detail=f"tipo_condicion_fisica debe ser uno de: excelente_desempeno, buen_desempeno, regular, necesita_mejorar. Recibido: {tipo_condicion_fisica}"
             )
         
         # Validar duración si se proporciona
