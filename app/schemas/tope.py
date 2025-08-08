@@ -13,10 +13,10 @@ class TipoEntrenamientoEnum(str, Enum):
 
 class TipoEvaluacionEnum(str, Enum):
     """Enum para evaluación de desempeño"""
-    EXCELENTE = "Excelente desempeño"
-    BUENO = "Buen desempeño"
-    REGULAR = "Regular"
-    NECESITA_MEJORAR = "Necesita mejorar"
+    EXCELENTE = "excelente_desempeno"
+    BUENO = "buen_desempeno"
+    REGULAR = "regular"
+    NECESITA_MEJORAR = "necesita_mejorar"
 
 class TopeBase(BaseModel):
     """Schema base para topes con validaciones mejoradas"""
