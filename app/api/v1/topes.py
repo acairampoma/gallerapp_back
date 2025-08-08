@@ -212,6 +212,7 @@ async def create_tope(
     ubicacion: Optional[str] = Form(None),
     duracion_minutos: Optional[int] = Form(None),
     tipo_entrenamiento: Optional[str] = Form(None),
+    des_sparring: Optional[str] = Form(None),
     observaciones: Optional[str] = Form(None),
     video: Optional[UploadFile] = File(None),
     current_user_id: int = Depends(get_current_user_id),
@@ -231,6 +232,7 @@ async def create_tope(
     - `ubicacion`: Lugar del entrenamiento
     - `duracion_minutos`: Duración en minutos (5-480)
     - `tipo_entrenamiento`: sparring/tecnica/resistencia/velocidad
+    - `des_sparring`: Descripción específica de sparring
     - `observaciones`: Notas del entrenamiento
     - `video`: Archivo de video (MP4, MOV, AVI)
     
@@ -251,6 +253,7 @@ async def create_tope(
             ubicacion=ubicacion,
             duracion_minutos=duracion_minutos,
             tipo_entrenamiento=tipo_entrenamiento,
+            des_sparring=des_sparring,
             observaciones=observaciones
         )
     
@@ -308,6 +311,7 @@ async def update_tope(
     ubicacion: Optional[str] = Form(None),
     duracion_minutos: Optional[int] = Form(None),
     tipo_entrenamiento: Optional[str] = Form(None),
+    des_sparring: Optional[str] = Form(None),
     observaciones: Optional[str] = Form(None),
     video: Optional[UploadFile] = File(None),
     current_user_id: int = Depends(get_current_user_id),
@@ -355,6 +359,8 @@ async def update_tope(
             tope.duracion_minutos = duracion_minutos
         if tipo_entrenamiento is not None:
             tope.tipo_entrenamiento = tipo_entrenamiento
+        if des_sparring is not None:
+            tope.des_sparring = des_sparring
         if observaciones is not None:
             tope.observaciones = observaciones
         

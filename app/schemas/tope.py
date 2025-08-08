@@ -20,6 +20,7 @@ class TopeBase(BaseModel):
     ubicacion: Optional[str] = Field(None, min_length=2, max_length=255, description="Lugar del entrenamiento")
     duracion_minutos: Optional[int] = Field(None, ge=5, le=480, description="Duración en minutos (5-480 min)")
     tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = Field(None, description="Tipo de entrenamiento")
+    des_sparring: Optional[str] = Field(None, max_length=255, description="Descripción de sparring")
     observaciones: Optional[str] = Field(None, max_length=2000, description="Observaciones del entrenamiento")
 
     @validator('fecha_tope')
@@ -64,6 +65,7 @@ class TopeUpdate(BaseModel):
     ubicacion: Optional[str] = Field(None, min_length=2, max_length=255, description="Lugar del entrenamiento")
     duracion_minutos: Optional[int] = Field(None, ge=5, le=480, description="Duración en minutos")
     tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = Field(None, description="Tipo de entrenamiento")
+    des_sparring: Optional[str] = Field(None, max_length=255, description="Descripción de sparring")
     observaciones: Optional[str] = Field(None, max_length=2000, description="Observaciones")
 
     @validator('titulo')

@@ -30,6 +30,7 @@ class Tope(Base):
     # Detalles del entrenamiento
     duracion_minutos = Column(Integer, nullable=True)
     tipo_entrenamiento = Column(String(100), nullable=True)  # ← CAMBIADO: String en lugar de Enum
+    des_sparring = Column(String(255), nullable=True)  # ← NUEVO CAMPO: Descripción de sparring
     
     # Video y observaciones
     video_url = Column(Text, nullable=True)
