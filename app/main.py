@@ -54,6 +54,20 @@ except ImportError as e:
     print(f"⚠️ Topes no disponible: {e}")
     topes_router = None
 
+# 💳 Cargar SISTEMA DE SUSCRIPCIONES (NUEVO)
+try:
+    from app.api.v1.suscripciones import router as suscripciones_router
+    from app.api.v1.pagos import router as pagos_router
+    from app.api.v1.admin import router as admin_router
+    print("   - ✅ Sistema de Suscripciones COMPLETO")
+    print("   - ✅ Pagos con QR Yape")
+    print("   - ✅ Panel Administrativo")
+except ImportError as e:
+    print(f"⚠️ Sistema de suscripciones no disponible: {e}")
+    suscripciones_router = None
+    pagos_router = None
+    admin_router = None
+
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
     
@@ -172,6 +186,31 @@ if topes_router:
         # NO agregar tags aquí - ya están en el router  
     )
     print("✅ Router de topes activado")
+
+# 💳 SISTEMA DE SUSCRIPCIONES - NUEVOS ENDPOINTS
+if suscripciones_router:
+    app.include_router(
+        suscripciones_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de suscripciones activado")
+
+if pagos_router:
+    app.include_router(
+        pagos_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de pagos activado")
+
+if admin_router:
+    app.include_router(
+        admin_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de admin activado")
 
 # 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 

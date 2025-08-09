@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 class User(Base):
@@ -13,8 +14,16 @@ class User(Base):
     is_premium = Column(Boolean, default=False)
     last_login = Column(DateTime)
     refresh_token = Column(String(500))
+    
+    # Campos para admin
+    es_admin = Column(Boolean, default=False)
+    recibe_notificaciones_admin = Column(Boolean, default=False)
+    
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Relaciones
+    suscripciones = relationship("Suscripcion", back_populates="user")
 
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"
