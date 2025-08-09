@@ -9,6 +9,8 @@ import logging
 from app.database import get_db
 from app.core.security import get_current_user_id
 from app.models.plan_catalogo import PlanCatalogo
+from app.models.suscripcion import Suscripcion
+from app.models.user import User
 from app.schemas.suscripcion import (
     SuscripcionResponse, 
     SuscripcionUpdate,
@@ -41,9 +43,6 @@ async def obtener_suscripcion_actual(
     límites y estado de vencimiento.
     """
     try:
-        # Importar modelo aquí para evitar imports circulares
-        from app.models.suscripcion import Suscripcion
-        
         suscripcion = db.query(Suscripcion).filter(
             and_(
                 Suscripcion.user_id == current_user_id,
@@ -222,7 +221,6 @@ async def solicitar_upgrade_plan(
             )
         
         # Verificar suscripción actual
-        from app.models.suscripcion import Suscripcion
         suscripcion_actual = db.query(Suscripcion).filter(
             and_(
                 Suscripcion.user_id == current_user_id,
@@ -285,7 +283,6 @@ async def activar_plan_usuario(
     """
     try:
         # Verificar que el usuario actual es admin
-        from app.models.user import User
         admin = db.query(User).filter(User.id == admin_user_id).first()
         if not admin or not admin.es_admin:
             raise HTTPException(
@@ -308,7 +305,6 @@ async def activar_plan_usuario(
             )
         
         # Actualizar suscripción del usuario
-        from app.models.suscripcion import Suscripcion
         suscripcion = db.query(Suscripcion).filter(
             and_(
                 Suscripcion.user_id == user_id,
@@ -374,7 +370,6 @@ async def obtener_estadisticas_suscripciones(
     """📊 Estadísticas de suscripciones (solo admins)"""
     try:
         # Verificar admin
-        from app.models.user import User
         admin = db.query(User).filter(User.id == admin_user_id).first()
         if not admin or not admin.es_admin:
             raise HTTPException(
@@ -383,8 +378,6 @@ async def obtener_estadisticas_suscripciones(
             )
         
         # Calcular estadísticas
-        from app.models.suscripcion import Suscripcion
-        
         total_usuarios = db.query(func.count(User.id)).scalar() or 0
         usuarios_premium = db.query(func.count(User.id)).filter(User.is_premium == True).scalar() or 0
         usuarios_gratuitos = total_usuarios - usuarios_premium
@@ -439,8 +432,6 @@ async def obtener_estadisticas_suscripciones(
 async def _crear_suscripcion_gratuita(user_id: int, db: Session):
     """Crea una suscripción gratuita automáticamente"""
     try:
-        from app.models.suscripcion import Suscripcion
-        
         # Obtener plan gratuito
         plan_gratuito = db.query(PlanCatalogo).filter(
             PlanCatalogo.codigo == 'gratuito'

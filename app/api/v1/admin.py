@@ -11,6 +11,8 @@ from app.core.security import get_current_user_id
 from app.models.user import User
 from app.models.pago_pendiente import PagoPendiente, EstadoPago
 from app.models.notificacion_admin import NotificacionAdmin, TipoNotificacion, PrioridadNotificacion
+from app.models.plan_catalogo import PlanCatalogo
+from app.models.suscripcion import Suscripcion
 from app.schemas.pago import (
     PagoPendienteAdmin, 
     AccionAdminRequest, 
@@ -195,7 +197,6 @@ async def obtener_pagos_pendientes(
                 razon_sospecha = "Pago muy antiguo"
             
             # Obtener plan
-            from app.models.plan_catalogo import PlanCatalogo
             plan = db.query(PlanCatalogo).filter(
                 PlanCatalogo.codigo == pago.plan_codigo
             ).first()
@@ -448,7 +449,6 @@ async def obtener_usuarios_admin(
         resultado = []
         for usuario in usuarios:
             # Obtener suscripción actual
-            from app.models.suscripcion import Suscripcion
             suscripcion = db.query(Suscripcion).filter(
                 and_(
                     Suscripcion.user_id == usuario.id,
@@ -486,10 +486,6 @@ async def obtener_usuarios_admin(
 async def _activar_plan_usuario(user_id: int, plan_codigo: str, db: Session):
     """Activa el plan premium para un usuario tras aprobar el pago"""
     try:
-        # Importar modelos
-        from app.models.plan_catalogo import PlanCatalogo
-        from app.models.suscripcion import Suscripcion
-        
         # Obtener el plan
         plan = db.query(PlanCatalogo).filter(
             PlanCatalogo.codigo == plan_codigo

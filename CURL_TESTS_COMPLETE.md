@@ -33,7 +33,7 @@ curl -X POST "$API_BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "juan.salas.nuevo@galloapp.com",
-    "password": "admin123"
+    "password": "123456"
   }'
 ```
 
