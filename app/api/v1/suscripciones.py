@@ -55,14 +55,20 @@ async def obtener_suscripcion_actual(
             logger.info(f"Creando suscripción gratuita automática para usuario {current_user_id}")
             suscripcion = await _crear_suscripcion_gratuita(current_user_id, db)
         
+        # Convertir a dict y calcular campos adicionales
+        suscripcion_dict = suscripcion.__dict__.copy()
+        
+        # Remover campos internos de SQLAlchemy
+        suscripcion_dict.pop('_sa_instance_state', None)
+        
         # Calcular campos adicionales
-        suscripcion.dias_restantes = _calcular_dias_restantes(suscripcion.fecha_fin)
-        suscripcion.esta_activa = suscripcion.status == 'active' and (
+        suscripcion_dict['dias_restantes'] = _calcular_dias_restantes(suscripcion.fecha_fin)
+        suscripcion_dict['esta_activa'] = suscripcion.status == 'active' and (
             not suscripcion.fecha_fin or suscripcion.fecha_fin >= date.today()
         )
-        suscripcion.es_premium = suscripcion.precio > 0
+        suscripcion_dict['es_premium'] = suscripcion.precio > 0
         
-        return suscripcion
+        return suscripcion_dict
         
     except Exception as e:
         logger.error(f"Error obteniendo suscripción actual para usuario {current_user_id}: {e}")

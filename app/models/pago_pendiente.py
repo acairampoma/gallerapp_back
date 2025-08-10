@@ -118,11 +118,15 @@ class PagoPendiente(Base):
             'monto': float(self.monto),
             'metodo_pago': self.metodo_pago,
             'referencia_yape': self.referencia_yape,
+            'qr_data': self.qr_data,  # CAMPO AGREGADO
             'qr_url': self.qr_url,
             'comprobante_url': self.comprobante_url,
             'estado': self.estado,
             'fecha_pago_usuario': self.fecha_pago_usuario.isoformat() if self.fecha_pago_usuario else None,
             'fecha_verificacion': self.fecha_verificacion.isoformat() if self.fecha_verificacion else None,
+            'verificado_por': self.verificado_por,  # CAMPO AGREGADO
             'notas_admin': self.notas_admin,
+            'intentos': self.intentos or 0,  # CAMPO AGREGADO
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,  # CAMPO AGREGADO
         }

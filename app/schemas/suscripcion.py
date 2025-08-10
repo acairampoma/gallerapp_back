@@ -79,8 +79,6 @@ class SuscripcionResponse(SuscripcionBase):
     status: str
     fecha_inicio: date
     fecha_fin: Optional[date]
-    payment_method: Optional[str]
-    transaction_id: Optional[str]
     created_at: datetime
     updated_at: datetime
     

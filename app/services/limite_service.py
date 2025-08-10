@@ -10,6 +10,7 @@ from app.models.gallo_simple import Gallo
 from app.models.tope import Tope  
 from app.models.pelea import Pelea
 from app.models.vacuna import Vacuna
+from app.models.suscripcion import Suscripcion  # Movido aquí desde línea 31
 from app.schemas.suscripcion import EstadoLimites, LimiteRecurso, ValidacionLimite, RecursoTipo
 from app.database import get_db
 
@@ -28,7 +29,6 @@ class LimiteService:
     def obtener_suscripcion_activa(self, user_id: int) -> Optional[Dict]:
         """Obtiene la suscripción activa del usuario"""
         try:
-            from app.models.suscripcion import Suscripcion  # Import directo
             
             suscripcion = self.db.query(Suscripcion).filter(
                 and_(
