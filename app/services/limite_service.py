@@ -16,6 +16,19 @@ from app.database import get_db
 
 logger = logging.getLogger(__name__)
 
+def crear_limite_recurso_completo(recurso_tipo, limite, usado):
+    """Crea LimiteRecurso con todos los campos calculados"""
+    disponible = max(0, limite - usado)
+    porcentaje_uso = round((usado / limite) * 100, 2) if limite > 0 else 0.0
+    
+    return LimiteRecurso(
+        tipo=recurso_tipo,
+        limite=limite,
+        usado=usado,
+        disponible=disponible,
+        porcentaje_uso=porcentaje_uso
+    )
+
 class LimiteService:
     """Servicio para validación y gestión de límites de suscripción"""
     
@@ -228,17 +241,17 @@ class LimiteService:
                 plan_actual="sin_plan",
                 suscripcion_activa=False,
                 fecha_vencimiento=None,
-                gallos=LimiteRecurso(tipo=RecursoTipo.GALLOS, limite=0, usado=0),
+                gallos=crear_limite_recurso_completo(RecursoTipo.GALLOS, 0, 0),
                 tiene_limites_superados=True,
                 recursos_en_limite=["sin_suscripcion"]
             )
         
         # Contador de gallos
         gallos_count = self.contar_gallos(user_id)
-        gallos_limite = LimiteRecurso(
-            tipo=RecursoTipo.GALLOS,
-            limite=suscripcion['gallos_maximo'],
-            usado=gallos_count
+        gallos_limite = crear_limite_recurso_completo(
+            RecursoTipo.GALLOS,
+            suscripcion['gallos_maximo'],
+            gallos_count
         )
         
         # Obtener gallos del usuario para límites individuales
@@ -252,30 +265,30 @@ class LimiteService:
         for gallo in gallos:
             # Topes
             topes_count = self.contar_topes(user_id, gallo.id)
-            topes_por_gallo[gallo.id] = LimiteRecurso(
-                tipo=RecursoTipo.TOPES,
-                limite=suscripcion['topes_por_gallo'],
-                usado=topes_count
+            topes_por_gallo[gallo.id] = crear_limite_recurso_completo(
+                RecursoTipo.TOPES,
+                suscripcion['topes_por_gallo'],
+                topes_count
             )
             if topes_count >= suscripcion['topes_por_gallo']:
                 recursos_en_limite.append(f"topes_gallo_{gallo.id}")
             
             # Peleas
             peleas_count = self.contar_peleas(user_id, gallo.id)
-            peleas_por_gallo[gallo.id] = LimiteRecurso(
-                tipo=RecursoTipo.PELEAS,
-                limite=suscripcion['peleas_por_gallo'],
-                usado=peleas_count
+            peleas_por_gallo[gallo.id] = crear_limite_recurso_completo(
+                RecursoTipo.PELEAS,
+                suscripcion['peleas_por_gallo'],
+                peleas_count
             )
             if peleas_count >= suscripcion['peleas_por_gallo']:
                 recursos_en_limite.append(f"peleas_gallo_{gallo.id}")
             
             # Vacunas
             vacunas_count = self.contar_vacunas(user_id, gallo.id)
-            vacunas_por_gallo[gallo.id] = LimiteRecurso(
-                tipo=RecursoTipo.VACUNAS,
-                limite=suscripcion['vacunas_por_gallo'],
-                usado=vacunas_count
+            vacunas_por_gallo[gallo.id] = crear_limite_recurso_completo(
+                RecursoTipo.VACUNAS,
+                suscripcion['vacunas_por_gallo'],
+                vacunas_count
             )
             if vacunas_count >= suscripcion['vacunas_por_gallo']:
                 recursos_en_limite.append(f"vacunas_gallo_{gallo.id}")
