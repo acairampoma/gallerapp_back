@@ -139,20 +139,20 @@ class LimiteRecurso(BaseModel):
     tipo: RecursoTipo
     limite: int = Field(..., ge=0, description="Límite máximo")
     usado: int = Field(..., ge=0, description="Cantidad usada")
-    disponible: int = Field(..., ge=0, description="Cantidad disponible")
-    porcentaje_uso: float = Field(..., ge=0, le=100, description="Porcentaje de uso")
+    disponible: Optional[int] = Field(None, ge=0, description="Cantidad disponible")
+    porcentaje_uso: Optional[float] = Field(None, ge=0, le=100, description="Porcentaje de uso")
     
     @validator('disponible', always=True)
     def calcular_disponible(cls, v, values):
-        if 'limite' in values and 'usado' in values:
+        if v is None and 'limite' in values and 'usado' in values:
             return max(0, values['limite'] - values['usado'])
-        return v
+        return v if v is not None else 0
     
     @validator('porcentaje_uso', always=True) 
     def calcular_porcentaje(cls, v, values):
-        if 'limite' in values and 'usado' in values and values['limite'] > 0:
+        if v is None and 'limite' in values and 'usado' in values and values['limite'] > 0:
             return round((values['usado'] / values['limite']) * 100, 2)
-        return 0.0
+        return v if v is not None else 0.0
 
 class EstadoLimites(BaseModel):
     """Schema para estado completo de límites"""
