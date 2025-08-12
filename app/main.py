@@ -68,6 +68,14 @@ except ImportError as e:
     pagos_router = None
     admin_router = None
 
+# 💰 Cargar módulo inversiones
+try:
+    from app.api.v1.inversiones import router as inversiones_router
+    print("   - ✅ Módulo de inversiones y reportes")
+except ImportError as e:
+    print(f"⚠️ Módulo inversiones no disponible: {e}")
+    inversiones_router = None
+
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
     
@@ -211,6 +219,14 @@ if admin_router:
         # NO agregar tags aquí - ya están en el router
     )
     print("✅ Router de admin activado")
+
+if inversiones_router:
+    app.include_router(
+        inversiones_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de inversiones activado")
 
 # 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 

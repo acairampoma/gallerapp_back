@@ -10,9 +10,10 @@ from app.models.notificacion_admin import NotificacionAdmin
 from app.models.tope import Tope
 from app.models.pelea import Pelea
 from app.models.vacuna import Vacuna
+from app.models.inversion import Inversion
 
 __all__ = [
     "User", "Profile", "Raza", "Gallo", 
     "Suscripcion", "PlanCatalogo", "PagoPendiente", "NotificacionAdmin",
-    "Tope", "Pelea", "Vacuna"
+    "Tope", "Pelea", "Vacuna", "Inversion"
 ]

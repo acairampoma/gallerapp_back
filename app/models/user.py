@@ -24,6 +24,7 @@ class User(Base):
     
     # Relaciones
     suscripciones = relationship("Suscripcion", back_populates="user")
+    inversiones = relationship("Inversion", back_populates="user")
 
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"

@@ -31,7 +31,7 @@ router = APIRouter(prefix="/suscripciones", tags=["📋 Suscripciones"])
 # ENDPOINTS DE SUSCRIPCIÓN ACTUAL
 # ========================================
 
-@router.get("/actual", response_model=SuscripcionResponse)
+@router.get("/actual", response_model=Dict[str, Any])
 async def obtener_suscripcion_actual(
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
@@ -40,7 +40,7 @@ async def obtener_suscripcion_actual(
     📋 Obtener suscripción actual del usuario
     
     Retorna la suscripción activa con todos los detalles,
-    límites y estado de vencimiento.
+    límites, estado de vencimiento y pagos pendientes.
     """
     try:
         suscripcion = db.query(Suscripcion).filter(
@@ -67,6 +67,27 @@ async def obtener_suscripcion_actual(
             not suscripcion.fecha_fin or suscripcion.fecha_fin >= date.today()
         )
         suscripcion_dict['es_premium'] = suscripcion.precio > 0
+        
+        # 🔄 VERIFICAR PAGOS PENDIENTES
+        from app.models.pago_pendiente import PagoPendiente
+        pago_pendiente = db.query(PagoPendiente).filter(
+            and_(
+                PagoPendiente.user_id == current_user_id,
+                PagoPendiente.estado.in_(['pendiente', 'verificando'])
+            )
+        ).order_by(desc(PagoPendiente.created_at)).first()
+        
+        if pago_pendiente:
+            suscripcion_dict['pago_pendiente'] = {
+                'id': pago_pendiente.id,
+                'plan_codigo': pago_pendiente.plan_codigo,
+                'monto': float(pago_pendiente.monto),
+                'estado': pago_pendiente.estado,
+                'fecha_pago': pago_pendiente.fecha_pago_usuario.isoformat() if pago_pendiente.fecha_pago_usuario else None,
+                'created_at': pago_pendiente.created_at.isoformat()
+            }
+        else:
+            suscripcion_dict['pago_pendiente'] = None
         
         return suscripcion_dict
         
