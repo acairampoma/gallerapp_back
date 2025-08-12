@@ -4,7 +4,7 @@ from sqlalchemy import and_, func
 from typing import List, Optional
 from datetime import datetime
 
-from app.models.inversion import Inversion, TipoGastoEnum
+from app.models.inversion import Inversion
 from app.schemas.inversion import InversionCreate, InversionUpdate
 
 class InversionService:
@@ -25,14 +25,15 @@ class InversionService:
         if mes:
             query = query.filter(Inversion.mes == mes)
         if tipo_gasto:
-            query = query.filter(Inversion.tipo_gasto == TipoGastoEnum[tipo_gasto.upper()])
+            query = query.filter(Inversion.tipo_gasto == tipo_gasto)
         
         return query.order_by(Inversion.año.desc(), Inversion.mes.desc()).all()
     
     @staticmethod
     def inicializar_mes(db: Session, user_id: int, año: int, mes: int):
         """Inicializar los 4 tipos de gasto para un mes"""
-        for tipo in TipoGastoEnum:
+        tipos = ['alimento', 'medicina', 'limpieza_galpon', 'entrenador']
+        for tipo in tipos:
             inversion_existente = db.query(Inversion).filter(
                 and_(
                     Inversion.user_id == user_id,
@@ -61,14 +62,12 @@ class InversionService:
         inversion_data: InversionCreate
     ) -> Inversion:
         """Crear o actualizar inversión (UPSERT)"""
-        tipo_enum = TipoGastoEnum[inversion_data.tipo_gasto.upper()]
-        
         inversion = db.query(Inversion).filter(
             and_(
                 Inversion.user_id == user_id,
                 Inversion.año == inversion_data.año,
                 Inversion.mes == inversion_data.mes,
-                Inversion.tipo_gasto == tipo_enum
+                Inversion.tipo_gasto == inversion_data.tipo_gasto
             )
         ).first()
         
@@ -80,7 +79,7 @@ class InversionService:
                 user_id=user_id,
                 año=inversion_data.año,
                 mes=inversion_data.mes,
-                tipo_gasto=tipo_enum,
+                tipo_gasto=inversion_data.tipo_gasto,
                 costo=inversion_data.costo
             )
             db.add(inversion)
@@ -114,7 +113,7 @@ class InversionService:
         }
         
         for inv in inversiones:
-            tipo = inv.tipo_gasto.value
+            tipo = inv.tipo_gasto
             resumen[tipo] = float(inv.costo)
             resumen["total"] += float(inv.costo)
         
@@ -149,7 +148,7 @@ class InversionService:
         # Llenar con datos reales
         for inv in inversiones:
             mes = inv.mes
-            tipo = inv.tipo_gasto.value
+            tipo = inv.tipo_gasto
             total = float(inv.total or 0)
             reporte_meses[mes][tipo] = total
             reporte_meses[mes]["total"] += total
