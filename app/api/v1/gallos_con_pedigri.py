@@ -14,6 +14,22 @@ from app.services.pdf_service_reportlab import pdf_service_reportlab
 
 router = APIRouter()
 
+# 🔧 HELPER FUNCTION PARA CASTING SEGURO
+def _safe_float(value) -> float:
+    """Convierte cualquier valor a float de forma segura"""
+    try:
+        if value is None:
+            return 0.0
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            # Limpiar string y convertir
+            cleaned = value.strip().replace(',', '')
+            return float(cleaned) if cleaned else 0.0
+        return 0.0
+    except (ValueError, TypeError, AttributeError):
+        return 0.0
+
 # 🐓 LISTAR TODOS LOS GALLOS DEL USUARIO - ENDPOINT QUE FALTABA
 @router.get("/", response_model=dict)
 async def get_gallos_usuario(
@@ -1046,7 +1062,7 @@ async def exportar_ficha_gallo(
                         0
                     ), 1
                 ) as efectividad,
-                SUM(CASE WHEN resultado = 'ganada' THEN COALESCE(premio, 0) ELSE 0 END) as ingresos_totales
+                SUM(CASE WHEN resultado = 'ganada' THEN COALESCE(CAST(premio AS NUMERIC), 0) ELSE 0 END) as ingresos_totales
             FROM peleas 
             WHERE gallo_id = :gallo_id
         """)
@@ -1128,7 +1144,7 @@ async def exportar_ficha_gallo(
                     "contrincante": pelea.contrincante,
                     "resultado": pelea.resultado,
                     "tiempo": pelea.tiempo_pelea,
-                    "premio": float(pelea.premio or 0)
+                    "premio": _safe_float(pelea.premio)
                 }
                 for pelea in historial_result
             ],
@@ -1255,7 +1271,7 @@ async def descargar_pdf_gallo(
                         0
                     ), 1
                 ) as efectividad,
-                SUM(CASE WHEN resultado = 'ganada' THEN COALESCE(premio, 0) ELSE 0 END) as ingresos_totales
+                SUM(CASE WHEN resultado = 'ganada' THEN COALESCE(CAST(premio AS NUMERIC), 0) ELSE 0 END) as ingresos_totales
             FROM peleas 
             WHERE gallo_id = :gallo_id
         """)
@@ -1337,7 +1353,7 @@ async def descargar_pdf_gallo(
                     "contrincante": pelea.contrincante,
                     "resultado": pelea.resultado,
                     "tiempo": pelea.tiempo_pelea,
-                    "premio": float(pelea.premio or 0)
+                    "premio": _safe_float(pelea.premio)
                 }
                 for pelea in historial_result
             ],
