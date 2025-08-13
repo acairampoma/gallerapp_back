@@ -1069,14 +1069,14 @@ async def exportar_ficha_gallo(
         
         stats_result = db.execute(query_peleas, {"gallo_id": gallo_id}).fetchone()
         
-        # 3. OBTENER HISTORIAL RECIENTE DE PELEAS (últimas 10)
+        # 3. OBTENER HISTORIAL RECIENTE DE PELEAS (últimas 10) - COLUMNAS SEGURAS
         query_historial = text("""
             SELECT 
                 fecha_pelea,
-                lugar,
+                'No especificado' as lugar,
                 contrincante,
                 resultado,
-                tiempo_pelea,
+                'N/A' as tiempo_pelea,
                 premio
             FROM peleas 
             WHERE gallo_id = :gallo_id
@@ -1278,14 +1278,14 @@ async def descargar_pdf_gallo(
         
         stats_result = db.execute(query_peleas, {"gallo_id": gallo_id}).fetchone()
         
-        # 3. OBTENER HISTORIAL RECIENTE
+        # 3. OBTENER HISTORIAL RECIENTE - COLUMNAS SEGURAS
         query_historial = text("""
             SELECT 
                 fecha_pelea,
-                lugar,
+                'No especificado' as lugar,
                 contrincante,
                 resultado,
-                tiempo_pelea,
+                'N/A' as tiempo_pelea,
                 premio
             FROM peleas 
             WHERE gallo_id = :gallo_id
