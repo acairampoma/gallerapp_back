@@ -27,12 +27,9 @@ email-validator==2.1.0
 # QR Code Generation
 qrcode[pil]==7.4.2
 
-# PDF Generation
-weasyprint==61.2
+# PDF Generation - ReportLab (Railway compatible)
+reportlab==4.0.7
 Jinja2==3.1.2
-html5lib==1.1
-cssselect2==0.7.0
-tinycss2==1.2.1
 
 # Development
 pytest==7.4.3

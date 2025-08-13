@@ -10,7 +10,7 @@ import os
 from app.database import get_db
 from app.core.security import get_current_user_id
 from app.services.cloudinary_service import CloudinaryService
-from app.services.pdf_service import pdf_service
+from app.services.pdf_service_reportlab import pdf_service_reportlab
 
 router = APIRouter()
 
@@ -1147,8 +1147,8 @@ async def exportar_ficha_gallo(
         try:
             print(f"🔥 Generando PDF para {gallo_result.nombre}...")
             
-            # Generar PDF usando nuestro servicio épico
-            pdf_bytes = pdf_service.generar_ficha_gallo_pdf(ficha_data)
+            # Generar PDF usando ReportLab (compatible con Railway)
+            pdf_bytes = pdf_service_reportlab.generar_ficha_gallo_pdf(ficha_data)
             
             if pdf_bytes:
                 print(f"✅ PDF generado exitosamente - {len(pdf_bytes)} bytes")
@@ -1159,7 +1159,7 @@ async def exportar_ficha_gallo(
                 
                 # Guardar temporalmente (opcional)
                 nombre_archivo = f"ficha_{gallo_result.nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-                temp_path = pdf_service.guardar_pdf_temporal(ficha_data, nombre_archivo)
+                temp_path = pdf_service_reportlab.guardar_pdf_temporal(ficha_data, nombre_archivo)
                 
                 if temp_path:
                     # En producción, podrías subir a Cloudinary o S3
@@ -1352,7 +1352,7 @@ async def descargar_pdf_gallo(
         # 6. GENERAR PDF
         print(f"📥 Generando PDF directo para descarga: {gallo_result.nombre}")
         
-        pdf_bytes = pdf_service.generar_ficha_gallo_pdf(ficha_data)
+        pdf_bytes = pdf_service_reportlab.generar_ficha_gallo_pdf(ficha_data)
         
         if not pdf_bytes:
             raise HTTPException(

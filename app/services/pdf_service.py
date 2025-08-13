@@ -1,5 +1,5 @@
 # 📄🐓 SERVICIO ÉPICO DE GENERACIÓN DE PDFs
-# Genera fichas profesionales de gallos con WeasyPrint
+# Genera fichas profesionales de gallos con ReportLab
 
 import os
 import io
@@ -9,12 +9,19 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 
 try:
-    import weasyprint
-    from jinja2 import Environment, FileSystemLoader
-    WEASYPRINT_AVAILABLE = True
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch, cm
+    from reportlab.lib.colors import HexColor, Color
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.platypus.frames import Frame
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    REPORTLAB_AVAILABLE = True
 except ImportError:
-    WEASYPRINT_AVAILABLE = False
-    print("⚠️ WeasyPrint no disponible - PDFs no se pueden generar")
+    REPORTLAB_AVAILABLE = False
+    print("⚠️ ReportLab no disponible - PDFs no se pueden generar")
 
 class PDFService:
     """🔥 Servicio épico para generar PDFs profesionales"""
