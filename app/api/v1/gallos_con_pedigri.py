@@ -977,3 +977,182 @@ async def update_gallo_con_expansion(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error actualizando pedigri: {str(e)}"
         )
+
+# 📄🐓 EXPORTAR FICHA PDF DE GALLO
+@router.post("/{gallo_id}/exportar-ficha")
+async def exportar_ficha_gallo(
+    gallo_id: int,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    🔥 EXPORTAR FICHA COMPLETA DE GALLO EN PDF
+    
+    Genera PDF épico con:
+    - Foto del gallo
+    - Estadísticas completas 
+    - Genealogía con fotos
+    - Historial de peleas
+    - Gráficos de rendimiento
+    """
+    try:
+        # 1. OBTENER DATOS COMPLETOS DEL GALLO
+        query_gallo = text("""
+            SELECT 
+                g.id, g.nombre, g.codigo_identificacion, g.fecha_nacimiento,
+                g.peso, g.altura, g.color, g.estado, g.procedencia, g.notas,
+                g.foto_principal_url, g.url_foto_cloudinary,
+                g.color_placa, g.ubicacion_placa, g.color_patas, g.color_plumaje,
+                g.criador, g.propietario_actual, g.observaciones,
+                g.numero_registro, g.tipo_registro,
+                r.nombre as raza_nombre,
+                -- Datos del padre
+                p.id as padre_id, p.nombre as padre_nombre, p.codigo_identificacion as padre_codigo,
+                p.foto_principal_url as padre_foto, pr.nombre as padre_raza,
+                -- Datos de la madre
+                m.id as madre_id, m.nombre as madre_nombre, m.codigo_identificacion as madre_codigo,
+                m.foto_principal_url as madre_foto, mr.nombre as madre_raza
+            FROM gallos g
+            LEFT JOIN razas r ON g.raza_id = r.id
+            LEFT JOIN gallos p ON g.padre_id = p.id
+            LEFT JOIN razas pr ON p.raza_id = pr.id
+            LEFT JOIN gallos m ON g.madre_id = m.id
+            LEFT JOIN razas mr ON m.raza_id = mr.id
+            WHERE g.id = :gallo_id AND g.user_id = :user_id
+        """)
+        
+        gallo_result = db.execute(query_gallo, {
+            "gallo_id": gallo_id,
+            "user_id": current_user_id
+        }).fetchone()
+        
+        if not gallo_result:
+            raise HTTPException(
+                status_code=404,
+                detail="Gallo no encontrado"
+            )
+        
+        # 2. OBTENER ESTADÍSTICAS DE PELEAS
+        query_peleas = text("""
+            SELECT 
+                COUNT(*) as total_peleas,
+                COUNT(CASE WHEN resultado = 'ganada' THEN 1 END) as peleas_ganadas,
+                COUNT(CASE WHEN resultado = 'perdida' THEN 1 END) as peleas_perdidas,
+                ROUND(
+                    COALESCE(
+                        COUNT(CASE WHEN resultado = 'ganada' THEN 1 END)::numeric / 
+                        NULLIF(COUNT(*), 0) * 100, 
+                        0
+                    ), 1
+                ) as efectividad,
+                SUM(CASE WHEN resultado = 'ganada' THEN COALESCE(premio, 0) ELSE 0 END) as ingresos_totales
+            FROM peleas 
+            WHERE gallo_id = :gallo_id
+        """)
+        
+        stats_result = db.execute(query_peleas, {"gallo_id": gallo_id}).fetchone()
+        
+        # 3. OBTENER HISTORIAL RECIENTE DE PELEAS (últimas 10)
+        query_historial = text("""
+            SELECT 
+                fecha_pelea,
+                lugar,
+                contrincante,
+                resultado,
+                tiempo_pelea,
+                premio
+            FROM peleas 
+            WHERE gallo_id = :gallo_id
+            ORDER BY fecha_pelea DESC
+            LIMIT 10
+        """)
+        
+        historial_result = db.execute(query_historial, {"gallo_id": gallo_id}).fetchall()
+        
+        # 4. OBTENER DATOS DE TOPES (ENTRENAMIENTOS)
+        query_topes = text("""
+            SELECT COUNT(*) as total_topes
+            FROM topes 
+            WHERE gallo_id = :gallo_id
+        """)
+        
+        topes_result = db.execute(query_topes, {"gallo_id": gallo_id}).fetchone()
+        
+        # 5. CONSTRUIR RESPUESTA COMPLETA PARA PDF
+        ficha_data = {
+            "gallo": {
+                "id": gallo_result.id,
+                "nombre": gallo_result.nombre,
+                "codigo": gallo_result.codigo_identificacion,
+                "fecha_nacimiento": gallo_result.fecha_nacimiento.isoformat() if gallo_result.fecha_nacimiento else None,
+                "peso": str(gallo_result.peso) if gallo_result.peso else None,
+                "altura": gallo_result.altura,
+                "color": gallo_result.color,
+                "estado": gallo_result.estado,
+                "raza": gallo_result.raza_nombre,
+                "foto_url": gallo_result.url_foto_cloudinary or gallo_result.foto_principal_url,
+                "criador": gallo_result.criador,
+                "propietario": gallo_result.propietario_actual,
+                "numero_registro": gallo_result.numero_registro,
+                "observaciones": gallo_result.observaciones
+            },
+            "genealogia": {
+                "padre": {
+                    "id": gallo_result.padre_id,
+                    "nombre": gallo_result.padre_nombre,
+                    "codigo": gallo_result.padre_codigo,
+                    "raza": gallo_result.padre_raza,
+                    "foto_url": gallo_result.padre_foto
+                } if gallo_result.padre_id else None,
+                "madre": {
+                    "id": gallo_result.madre_id,
+                    "nombre": gallo_result.madre_nombre,
+                    "codigo": gallo_result.madre_codigo,
+                    "raza": gallo_result.madre_raza,
+                    "foto_url": gallo_result.madre_foto
+                } if gallo_result.madre_id else None
+            },
+            "estadisticas": {
+                "total_peleas": stats_result.total_peleas or 0,
+                "peleas_ganadas": stats_result.peleas_ganadas or 0,
+                "peleas_perdidas": stats_result.peleas_perdidas or 0,
+                "efectividad": float(stats_result.efectividad or 0),
+                "ingresos_totales": float(stats_result.ingresos_totales or 0),
+                "total_topes": topes_result.total_topes or 0
+            },
+            "historial_peleas": [
+                {
+                    "fecha": pelea.fecha_pelea.isoformat() if pelea.fecha_pelea else None,
+                    "lugar": pelea.lugar,
+                    "contrincante": pelea.contrincante,
+                    "resultado": pelea.resultado,
+                    "tiempo": pelea.tiempo_pelea,
+                    "premio": float(pelea.premio or 0)
+                }
+                for pelea in historial_result
+            ],
+            "metadata": {
+                "fecha_generacion": datetime.now().isoformat(),
+                "usuario_id": current_user_id,
+                "tipo_reporte": "ficha_completa",
+                "version": "v1.0"
+            }
+        }
+        
+        # 6. AQUÍ SE INTEGRARÁ LA GENERACIÓN DE PDF
+        # Por ahora retornamos los datos para que Flutter los use
+        return {
+            "success": True,
+            "message": f"Ficha de {gallo_result.nombre} generada exitosamente",
+            "data": ficha_data,
+            "pdf_url": None,  # Se agregará cuando implementemos PDF generator
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generando ficha: {str(e)}"
+        )
