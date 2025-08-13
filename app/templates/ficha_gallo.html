@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de {{ gallo.nombre }} - Casto de Gallos</title>
+    <style>
+        /* 🎨 ESTILOS ÉPICOS PARA FICHA PDF */
+        @page {
+            size: A4;
+            margin: 15mm;
+            @top-center {
+                content: "🐓 Casto de Gallos - Ficha Técnica";
+                color: #2c5530;
+                font-size: 10px;
+                font-weight: bold;
+            }
+            @bottom-right {
+                content: "Página " counter(page);
+                color: #666;
+                font-size: 9px;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.4;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* 🔥 HEADER ÉPICO */
+        .header {
+            background: linear-gradient(135deg, #2c5530 0%, #4a7c59 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: "🐓";
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            font-size: 24px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* 📊 SECCIÓN PRINCIPAL */
+        .main-section {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .foto-section {
+            flex: 0 0 200px;
+            text-align: center;
+        }
+
+        .foto-gallo {
+            width: 180px;
+            height: 180px;
+            border-radius: 15px;
+            object-fit: cover;
+            border: 4px solid #2c5530;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .foto-placeholder {
+            width: 180px;
+            height: 180px;
+            border-radius: 15px;
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: #999;
+            border: 4px solid #ddd;
+        }
+
+        .info-section {
+            flex: 1;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #2c5530;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        /* 🏆 ESTADÍSTICAS ÉPICAS */
+        .stats-section {
+            margin: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border-radius: 10px;
+            border: 2px solid #f1c40f;
+        }
+
+        .stats-title {
+            text-align: center;
+            font-size: 18px;
+            color: #2c5530;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            text-align: center;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c5530;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .efectividad {
+            color: #27ae60;
+        }
+
+        /* 👨👩 GENEALOGÍA */
+        .genealogy-section {
+            margin: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+
+        .genealogy-title {
+            text-align: center;
+            font-size: 18px;
+            color: #2c5530;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .parents-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .parent-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .parent-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .parent-foto {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 10px;
+            border: 3px solid #2c5530;
+        }
+
+        .parent-info {
+            font-size: 12px;
+            color: #333;
+        }
+
+        .parent-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        /* 📜 HISTORIAL */
+        .historial-section {
+            margin: 20px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+        }
+
+        .historial-title {
+            text-align: center;
+            font-size: 18px;
+            color: #2c5530;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .historial-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .historial-table th {
+            background: #2c5530;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .historial-table td {
+            padding: 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .resultado-ganada {
+            background: #d4edda;
+            color: #155724;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .resultado-perdida {
+            background: #f8d7da;
+            color: #721c24;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* 📝 FOOTER */
+        .footer {
+            margin: 20px;
+            padding: 15px;
+            background: #2c5530;
+            color: white;
+            text-align: center;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .footer-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .generation-date {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        /* 💰 PRIZE FORMATTING */
+        .prize {
+            color: #f39c12;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 🔥 HEADER ÉPICO -->
+        <div class="header">
+            <h1>{{ gallo.nombre }}</h1>
+            <div class="subtitle">Código: {{ gallo.codigo }} | Ficha Técnica Profesional</div>
+        </div>
+
+        <!-- 📊 SECCIÓN PRINCIPAL -->
+        <div class="main-section">
+            <div class="foto-section">
+                {% if gallo.foto_url %}
+                <img src="{{ gallo.foto_url }}" alt="Foto de {{ gallo.nombre }}" class="foto-gallo">
+                {% else %}
+                <div class="foto-placeholder">🐓</div>
+                {% endif %}
+            </div>
+
+            <div class="info-section">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Código ID</div>
+                        <div class="info-value">{{ gallo.codigo }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Raza</div>
+                        <div class="info-value">{{ gallo.raza or 'No especificada' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Fecha Nacimiento</div>
+                        <div class="info-value">{{ gallo.fecha_nacimiento or 'No registrada' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Estado</div>
+                        <div class="info-value">{{ gallo.estado or 'Activo' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Peso</div>
+                        <div class="info-value">{{ gallo.peso or 'No registrado' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Color</div>
+                        <div class="info-value">{{ gallo.color or 'No especificado' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Criador</div>
+                        <div class="info-value">{{ gallo.criador or 'No registrado' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Propietario</div>
+                        <div class="info-value">{{ gallo.propietario or 'No registrado' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🏆 ESTADÍSTICAS ÉPICAS -->
+        <div class="stats-section">
+            <div class="stats-title">🏆 Estadísticas de Rendimiento</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">{{ estadisticas.total_peleas }}</div>
+                    <div class="stat-label">Total Peleas</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ estadisticas.peleas_ganadas }}</div>
+                    <div class="stat-label">Ganadas</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number efectividad">{{ "%.1f"|format(estadisticas.efectividad) }}%</div>
+                    <div class="stat-label">Efectividad</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number prize">S/ {{ "%.2f"|format(estadisticas.ingresos_totales) }}</div>
+                    <div class="stat-label">Ingresos</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 👨👩 GENEALOGÍA -->
+        {% if genealogia.padre or genealogia.madre %}
+        <div class="genealogy-section">
+            <div class="genealogy-title">🧬 Genealogía</div>
+            <div class="parents-grid">
+                {% if genealogia.padre %}
+                <div class="parent-card">
+                    <div class="parent-title">👨 Padre</div>
+                    {% if genealogia.padre.foto_url %}
+                    <img src="{{ genealogia.padre.foto_url }}" alt="Foto del padre" class="parent-foto">
+                    {% else %}
+                    <div class="parent-foto" style="background: #f0f0f0; display: flex; align-items: center; justify-content: center;">🐓</div>
+                    {% endif %}
+                    <div class="parent-info">
+                        <div class="parent-name">{{ genealogia.padre.nombre }}</div>
+                        <div>{{ genealogia.padre.codigo }}</div>
+                        {% if genealogia.padre.raza %}
+                        <div>{{ genealogia.padre.raza }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if genealogia.madre %}
+                <div class="parent-card">
+                    <div class="parent-title">👩 Madre</div>
+                    {% if genealogia.madre.foto_url %}
+                    <img src="{{ genealogia.madre.foto_url }}" alt="Foto de la madre" class="parent-foto">
+                    {% else %}
+                    <div class="parent-foto" style="background: #f0f0f0; display: flex; align-items: center; justify-content: center;">🐓</div>
+                    {% endif %}
+                    <div class="parent-info">
+                        <div class="parent-name">{{ genealogia.madre.nombre }}</div>
+                        <div>{{ genealogia.madre.codigo }}</div>
+                        {% if genealogia.madre.raza %}
+                        <div>{{ genealogia.madre.raza }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 📜 HISTORIAL DE PELEAS -->
+        {% if historial_peleas %}
+        <div class="historial-section">
+            <div class="historial-title">📜 Historial de Peleas (Últimas 10)</div>
+            <table class="historial-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Lugar</th>
+                        <th>Contrincante</th>
+                        <th>Resultado</th>
+                        <th>Tiempo</th>
+                        <th>Premio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pelea in historial_peleas %}
+                    <tr>
+                        <td>{{ pelea.fecha or 'N/A' }}</td>
+                        <td>{{ pelea.lugar or 'N/A' }}</td>
+                        <td>{{ pelea.contrincante or 'N/A' }}</td>
+                        <td class="resultado-{{ pelea.resultado or 'indefinida' }}">{{ pelea.resultado or 'N/A' }}</td>
+                        <td>{{ pelea.tiempo or 'N/A' }}</td>
+                        <td class="prize">S/ {{ "%.2f"|format(pelea.premio or 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- 📝 FOOTER -->
+        <div class="footer">
+            <div class="footer-title">🐓 Casto de Gallos - Sistema Profesional de Gestión</div>
+            <div class="generation-date">
+                Ficha generada el {{ metadata.fecha_generacion }} | 
+                Usuario ID: {{ metadata.usuario_id }} | 
+                Versión: {{ metadata.version }}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
