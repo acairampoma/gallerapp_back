@@ -21,6 +21,16 @@ class PeleaBase(BaseModel):
     oponente_gallo: Optional[str] = Field(None, min_length=2, max_length=255, description="Nombre del gallo oponente")
     resultado: Optional[ResultadoPeleaEnum] = Field(None, description="Resultado de la pelea")
     notas_resultado: Optional[str] = Field(None, max_length=2000, description="Notas del resultado")
+    
+    # 🆕 NUEVOS CAMPOS AGREGADOS
+    gallera: Optional[str] = Field(None, max_length=255, description="Nombre de la gallera")
+    ciudad: Optional[str] = Field(None, max_length=255, description="Ciudad de la gallera")
+    mi_gallo_nombre: Optional[str] = Field(None, max_length=255, description="Nombre de mi gallo")
+    mi_gallo_propietario: Optional[str] = Field(None, max_length=255, description="Propietario de mi gallo")
+    mi_gallo_peso: Optional[int] = Field(None, gt=0, le=5000, description="Peso de mi gallo en gramos")
+    oponente_gallo_peso: Optional[int] = Field(None, gt=0, le=5000, description="Peso del gallo oponente en gramos")
+    premio: Optional[str] = Field(None, max_length=100, description="Premio del combate")
+    duracion_minutos: Optional[int] = Field(None, gt=0, le=480, description="Duración en minutos")
 
     @validator('fecha_pelea')
     def validar_fecha_pelea(cls, v):
@@ -50,6 +60,16 @@ class PeleaUpdate(BaseModel):
     oponente_gallo: Optional[str] = Field(None, max_length=255)
     resultado: Optional[ResultadoPeleaEnum] = None
     notas_resultado: Optional[str] = None
+    
+    # 🆕 NUEVOS CAMPOS AGREGADOS
+    gallera: Optional[str] = Field(None, max_length=255)
+    ciudad: Optional[str] = Field(None, max_length=255)
+    mi_gallo_nombre: Optional[str] = Field(None, max_length=255)
+    mi_gallo_propietario: Optional[str] = Field(None, max_length=255)
+    mi_gallo_peso: Optional[int] = Field(None, gt=0, le=5000)
+    oponente_gallo_peso: Optional[int] = Field(None, gt=0, le=5000)
+    premio: Optional[str] = Field(None, max_length=100)
+    duracion_minutos: Optional[int] = Field(None, gt=0, le=480)
 
 class PeleaResponse(PeleaBase):
     """Schema para respuesta de pelea"""

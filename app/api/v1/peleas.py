@@ -273,6 +273,15 @@ async def create_pelea(
     resultado: Optional[str] = Form(None),
     notas_resultado: Optional[str] = Form(None),
     video: Optional[UploadFile] = File(None),
+    # 🆕 NUEVOS FORM FIELDS (8 campos opcionales)
+    gallera: Optional[str] = Form(None),
+    ciudad: Optional[str] = Form(None),
+    mi_gallo_nombre: Optional[str] = Form(None),
+    mi_gallo_propietario: Optional[str] = Form(None),
+    mi_gallo_peso: Optional[int] = Form(None),
+    oponente_gallo_peso: Optional[int] = Form(None),
+    premio: Optional[str] = Form(None),
+    duracion_minutos: Optional[int] = Form(None),
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
@@ -332,7 +341,16 @@ async def create_pelea(
             oponente_nombre=oponente_nombre,
             oponente_gallo=oponente_gallo,
             resultado=resultado,
-            notas_resultado=notas_resultado
+            notas_resultado=notas_resultado,
+            # 🆕 NUEVOS CAMPOS
+            gallera=gallera,
+            ciudad=ciudad,
+            mi_gallo_nombre=mi_gallo_nombre,
+            mi_gallo_propietario=mi_gallo_propietario,
+            mi_gallo_peso=mi_gallo_peso,
+            oponente_gallo_peso=oponente_gallo_peso,
+            premio=premio,
+            duracion_minutos=duracion_minutos
         )
     
         # Subida de video simplificada (opcional)
@@ -399,6 +417,15 @@ async def update_pelea(
     resultado: Optional[str] = Form(None),
     notas_resultado: Optional[str] = Form(None),
     video: Optional[UploadFile] = File(None),
+    # 🆕 NUEVOS FORM FIELDS (8 campos opcionales) - AGREGADOS AL UPDATE
+    gallera: Optional[str] = Form(None),
+    ciudad: Optional[str] = Form(None),
+    mi_gallo_nombre: Optional[str] = Form(None),
+    mi_gallo_propietario: Optional[str] = Form(None),
+    mi_gallo_peso: Optional[int] = Form(None),
+    oponente_gallo_peso: Optional[int] = Form(None),
+    premio: Optional[str] = Form(None),
+    duracion_minutos: Optional[int] = Form(None),
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
@@ -448,6 +475,24 @@ async def update_pelea(
             pelea.resultado = resultado
         if notas_resultado is not None:
             pelea.notas_resultado = notas_resultado
+        
+        # 🆕 ACTUALIZAR NUEVOS CAMPOS (8 campos)
+        if gallera is not None:
+            pelea.gallera = gallera
+        if ciudad is not None:
+            pelea.ciudad = ciudad
+        if mi_gallo_nombre is not None:
+            pelea.mi_gallo_nombre = mi_gallo_nombre
+        if mi_gallo_propietario is not None:
+            pelea.mi_gallo_propietario = mi_gallo_propietario
+        if mi_gallo_peso is not None:
+            pelea.mi_gallo_peso = mi_gallo_peso
+        if oponente_gallo_peso is not None:
+            pelea.oponente_gallo_peso = oponente_gallo_peso
+        if premio is not None:
+            pelea.premio = premio
+        if duracion_minutos is not None:
+            pelea.duracion_minutos = duracion_minutos
     
         # Si hay nuevo video, actualizarlo
         if video and video.filename:

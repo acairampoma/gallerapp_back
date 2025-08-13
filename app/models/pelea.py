@@ -37,6 +37,16 @@ class Pelea(Base):
     # Video
     video_url = Column(Text, nullable=True)
     
+    # 🆕 NUEVOS CAMPOS AGREGADOS
+    gallera = Column(String(255), nullable=True)
+    ciudad = Column(String(255), nullable=True)
+    mi_gallo_nombre = Column(String(255), nullable=True)
+    mi_gallo_propietario = Column(String(255), nullable=True)
+    mi_gallo_peso = Column(Integer, nullable=True)  # gramos
+    oponente_gallo_peso = Column(Integer, nullable=True)  # gramos
+    premio = Column(String(100), nullable=True)
+    duracion_minutos = Column(Integer, nullable=True)
+    
     # Timestamps - EXACTOS como en BD
     created_at = Column(DateTime, server_default="CURRENT_TIMESTAMP")
     updated_at = Column(DateTime, server_default="CURRENT_TIMESTAMP", onupdate=datetime.utcnow)
