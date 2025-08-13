@@ -76,6 +76,14 @@ except ImportError as e:
     print(f"⚠️ Módulo inversiones no disponible: {e}")
     inversiones_router = None
 
+# 📊 Cargar módulo reportes
+try:
+    from app.api.v1.reportes import router as reportes_router
+    print("   - ✅ Módulo de reportes épicos con filtros")
+except ImportError as e:
+    print(f"⚠️ Módulo reportes no disponible: {e}")
+    reportes_router = None
+
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
     
@@ -228,6 +236,14 @@ if inversiones_router:
     )
     print("✅ Router de inversiones activado")
 
+if reportes_router:
+    app.include_router(
+        reportes_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de reportes activado")
+
 # 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 
 # 🏠 ENDPOINTS BÁSICOS
@@ -256,6 +272,7 @@ async def root():
             "razas": "/api/v1/razas" if razas_router else "NO DISPONIBLE",
             "vacunas": "/api/v1/vacunas" if vacunas_router else "NO DISPONIBLE",
             "genealogia": "/api/v1/gallos/con-pedigri" if gallos_pedigri_router else "NO DISPONIBLE",
+            "reportes": "/api/v1/reportes" if reportes_router else "NO DISPONIBLE",
             "test_db": "/test-db",
             "test_cloudinary": "/test-cloudinary",
             "test_full": "/test-full"
