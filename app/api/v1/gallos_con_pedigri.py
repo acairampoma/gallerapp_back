@@ -1507,3 +1507,211 @@ async def descargar_pdf_gallo(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generando PDF para descarga: {str(e)}"
         )
+
+# 🌳 OBTENER ÁRBOL GENEALÓGICO COMPLETO - ENDPOINT QUE FALTABA
+@router.get("/{gallo_id}/genealogia", response_model=dict)
+async def get_genealogia_completa(
+    gallo_id: int,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    🔥 OBTENER ÁRBOL GENEALÓGICO COMPLETO USANDO ID_GALLO_GENEALOGICO
+    
+    Este endpoint recibe un gallo_id, obtiene su id_gallo_genealogico,
+    y devuelve TODA la familia genealógica (no solo los padres directos)
+    """
+    try:
+        # 1. Obtener el gallo base para encontrar su id_gallo_genealogico
+        query_gallo_base = text("""
+            SELECT 
+                id, nombre, codigo_identificacion, id_gallo_genealogico,
+                padre_id, madre_id, foto_principal_url, url_foto_cloudinary,
+                raza_id, peso, altura, color, estado,
+                created_at, updated_at
+            FROM gallos 
+            WHERE id = :gallo_id AND user_id = :user_id
+        """)
+        
+        gallo_base_result = db.execute(query_gallo_base, {
+            "gallo_id": gallo_id,
+            "user_id": current_user_id
+        }).fetchone()
+        
+        if not gallo_base_result:
+            raise HTTPException(
+                status_code=404,
+                detail="Gallo no encontrado"
+            )
+        
+        id_gallo_genealogico = gallo_base_result.id_gallo_genealogico
+        
+        if not id_gallo_genealogico:
+            # Si no tiene id_gallo_genealogico, solo devolver el gallo individual
+            return {
+                "success": True,
+                "data": {
+                    "gallo_base": {
+                        "id": gallo_base_result.id,
+                        "nombre": gallo_base_result.nombre,
+                        "codigo_identificacion": gallo_base_result.codigo_identificacion
+                    },
+                    "arbol_genealogico": {
+                        "ancestros": {
+                            "id": gallo_base_result.id,
+                            "nombre": gallo_base_result.nombre,
+                            "codigo_identificacion": gallo_base_result.codigo_identificacion,
+                            "foto_principal_url": gallo_base_result.foto_principal_url or gallo_base_result.url_foto_cloudinary,
+                            "padre": None,
+                            "madre": None
+                        }
+                    },
+                    "estadisticas": {
+                        "total_ancestros": 0,
+                        "generaciones_disponibles": 1,
+                        "genealogy_id": None
+                    }
+                },
+                "message": "Gallo sin genealogía registrada"
+            }
+        
+        print(f"🌳 Construyendo árbol genealógico para id_gallo_genealogico: {id_gallo_genealogico}")
+        
+        # 2. Obtener TODA la familia usando id_gallo_genealogico
+        query_familia = text("""
+            SELECT 
+                id, nombre, codigo_identificacion, padre_id, madre_id,
+                foto_principal_url, url_foto_cloudinary, tipo_registro,
+                raza_id, peso, altura, color, estado,
+                id_gallo_genealogico, created_at, updated_at
+            FROM gallos 
+            WHERE id_gallo_genealogico = :id_genealogico AND user_id = :user_id
+            ORDER BY 
+                CASE 
+                    WHEN tipo_registro = 'principal' THEN 1
+                    WHEN tipo_registro = 'padre_generado' THEN 2
+                    WHEN tipo_registro = 'madre_generada' THEN 3
+                    ELSE 4
+                END,
+                created_at ASC
+        """)
+        
+        familia_result = db.execute(query_familia, {
+            "id_genealogico": id_gallo_genealogico,
+            "user_id": current_user_id
+        }).fetchall()
+        
+        if not familia_result:
+            raise HTTPException(
+                status_code=404,
+                detail="Familia genealógica no encontrada"
+            )
+        
+        print(f"✅ Familia encontrada: {len(familia_result)} gallos")
+        
+        # 3. Construir diccionario de gallos por ID para fácil acceso
+        gallos_dict = {}
+        for gallo in familia_result:
+            gallos_dict[gallo.id] = {
+                "id": gallo.id,
+                "nombre": gallo.nombre,
+                "codigo_identificacion": gallo.codigo_identificacion,
+                "padre_id": gallo.padre_id,
+                "madre_id": gallo.madre_id,
+                "foto_principal_url": gallo.foto_principal_url or gallo.url_foto_cloudinary,
+                "tipo_registro": gallo.tipo_registro,
+                "raza_id": gallo.raza_id,
+                "peso": str(gallo.peso) if gallo.peso else None,
+                "altura": gallo.altura,
+                "color": gallo.color,
+                "estado": gallo.estado,
+                "id_gallo_genealogico": gallo.id_gallo_genealogico
+            }
+        
+        # 4. Construir árbol genealógico recursivo
+        def construir_ancestros(gallo_id, profundidad=0, max_profundidad=10):
+            """Construir árbol de ancestros recursivamente"""
+            if profundidad > max_profundidad or gallo_id not in gallos_dict:
+                return None
+            
+            gallo = gallos_dict[gallo_id]
+            nodo = {
+                "id": gallo["id"],
+                "nombre": gallo["nombre"],
+                "codigo_identificacion": gallo["codigo_identificacion"],
+                "foto_principal_url": gallo["foto_principal_url"],
+                "tipo_registro": gallo["tipo_registro"],
+                "raza_id": gallo["raza_id"],
+                "peso": gallo["peso"],
+                "altura": gallo["altura"],
+                "color": gallo["color"],
+                "estado": gallo["estado"],
+                "padre": None,
+                "madre": None
+            }
+            
+            # Agregar padre recursivamente
+            if gallo["padre_id"]:
+                nodo["padre"] = construir_ancestros(gallo["padre_id"], profundidad + 1, max_profundidad)
+            
+            # Agregar madre recursivamente
+            if gallo["madre_id"]:
+                nodo["madre"] = construir_ancestros(gallo["madre_id"], profundidad + 1, max_profundidad)
+            
+            return nodo
+        
+        # 5. Construir árbol comenzando desde el gallo solicitado
+        arbol_genealogico = construir_ancestros(gallo_id)
+        
+        # 6. Calcular estadísticas
+        total_ancestros = len(familia_result) - 1  # No contar el gallo base
+        
+        # Calcular generaciones disponibles
+        def calcular_generaciones(nodo, gen=0):
+            if not nodo:
+                return gen
+            max_gen_padre = calcular_generaciones(nodo.get("padre"), gen + 1)
+            max_gen_madre = calcular_generaciones(nodo.get("madre"), gen + 1)
+            return max(max_gen_padre, max_gen_madre)
+        
+        generaciones = calcular_generaciones(arbol_genealogico)
+        
+        return {
+            "success": True,
+            "data": {
+                "gallo_base": {
+                    "id": gallo_base_result.id,
+                    "nombre": gallo_base_result.nombre,
+                    "codigo_identificacion": gallo_base_result.codigo_identificacion
+                },
+                "arbol_genealogico": {
+                    "ancestros": arbol_genealogico
+                },
+                "estadisticas": {
+                    "total_ancestros": total_ancestros,
+                    "generaciones_disponibles": generaciones,
+                    "genealogy_id": id_gallo_genealogico,
+                    "total_familia": len(familia_result)
+                },
+                "familia_completa": [
+                    {
+                        "id": g.id,
+                        "nombre": g.nombre,
+                        "codigo_identificacion": g.codigo_identificacion,
+                        "tipo_registro": g.tipo_registro,
+                        "padre_id": g.padre_id,
+                        "madre_id": g.madre_id
+                    } for g in familia_result
+                ]
+            },
+            "message": f"Árbol genealógico completo con {len(familia_result)} gallos"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error obteniendo genealogía: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo genealogía: {str(e)}"
+        )
