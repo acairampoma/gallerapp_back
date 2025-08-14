@@ -30,6 +30,99 @@ def _safe_float(value) -> float:
     except (ValueError, TypeError, AttributeError):
         return 0.0
 
+# 🌳 LISTAR SOLO GALLOS PRINCIPALES (CABEZAS DE ÁRBOL GENEALÓGICO) - NUEVO ENDPOINT ÉPICO
+@router.get("/principales", response_model=dict)
+async def get_gallos_principales(
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    🔥 LISTAR SOLO GALLOS PRINCIPALES (CABEZAS DE ÁRBOL GENEALÓGICO)
+    Usa la query SQL DISTINCT que pediste:
+    SELECT o.* FROM gallos o WHERE o.id IN (
+        SELECT DISTINCT g.id_gallo_genealogico FROM gallos g WHERE g.user_id = :user_id
+    )
+    """
+    try:
+        # 🔥 LA QUERY EXACTA QUE PEDISTE
+        query = text("""
+            SELECT 
+                o.id, o.user_id, o.raza_id, o.nombre, o.codigo_identificacion, 
+                o.fecha_nacimiento, o.peso, o.altura, o.color, o.estado,
+                o.padre_id, o.madre_id, o.foto_principal_url, o.fotos_adicionales,
+                o.procedencia, o.notas, o.created_at, o.updated_at,
+                o.id_gallo_genealogico, o.url_foto_cloudinary,
+                o.color_placa, o.ubicacion_placa, o.color_patas, o.color_plumaje,
+                o.criador, o.propietario_actual, o.observaciones,
+                o.numero_registro, o.tipo_registro
+            FROM gallos o 
+            WHERE o.id IN (
+                SELECT DISTINCT g.id_gallo_genealogico 
+                FROM gallos g 
+                WHERE g.user_id = :user_id
+                AND g.id_gallo_genealogico IS NOT NULL
+            )
+            ORDER BY o.created_at DESC
+        """)
+        
+        result = db.execute(query, {"user_id": current_user_id})
+        gallos_raw = result.fetchall()
+        
+        print(f"🌳 Gallos principales encontrados: {len(gallos_raw)}")
+        
+        # Convertir a lista de diccionarios
+        gallos_list = []
+        for gallo in gallos_raw:
+            gallo_dict = {
+                "id": gallo.id,
+                "user_id": gallo.user_id,
+                "raza_id": gallo.raza_id,
+                "nombre": gallo.nombre,
+                "codigo_identificacion": gallo.codigo_identificacion,
+                "fecha_nacimiento": gallo.fecha_nacimiento.isoformat() if gallo.fecha_nacimiento else None,
+                "peso": str(gallo.peso) if gallo.peso else None,
+                "altura": gallo.altura,
+                "color": gallo.color,
+                "estado": gallo.estado,
+                "padre_id": gallo.padre_id,
+                "madre_id": gallo.madre_id,
+                "foto_principal_url": gallo.foto_principal_url,
+                "url_foto_cloudinary": gallo.url_foto_cloudinary,
+                "fotos_adicionales": gallo.fotos_adicionales,
+                "procedencia": gallo.procedencia,
+                "notas": gallo.notas,
+                "color_placa": gallo.color_placa,
+                "ubicacion_placa": gallo.ubicacion_placa,
+                "color_patas": gallo.color_patas,
+                "color_plumaje": gallo.color_plumaje,
+                "criador": gallo.criador,
+                "propietario_actual": gallo.propietario_actual,
+                "observaciones": gallo.observaciones,
+                "numero_registro": gallo.numero_registro,
+                "tipo_registro": gallo.tipo_registro,
+                "id_gallo_genealogico": gallo.id_gallo_genealogico,
+                "created_at": gallo.created_at.isoformat() if gallo.created_at else None,
+                "updated_at": gallo.updated_at.isoformat() if gallo.updated_at else None
+            }
+            gallos_list.append(gallo_dict)
+        
+        return {
+            "success": True,
+            "data": {
+                "gallos": gallos_list,
+                "total": len(gallos_list),
+                "user_id": current_user_id,
+                "tipo": "principales_distinct"
+            },
+            "message": f"Se encontraron {len(gallos_list)} gallos principales (cabezas de árbol)"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo gallos principales: {str(e)}"
+        )
+
 # 🐓 LISTAR TODOS LOS GALLOS DEL USUARIO - ENDPOINT QUE FALTABA
 @router.get("/", response_model=dict)
 async def get_gallos_usuario(
