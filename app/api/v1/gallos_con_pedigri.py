@@ -44,7 +44,7 @@ async def get_gallos_principales(
     )
     """
     try:
-        # 🔥 LA QUERY EXACTA QUE PEDISTE
+        # 🔥 LA QUERY MEJORADA - INCLUYE GALLOS SIN id_gallo_genealogico TAMBIÉN
         query = text("""
             SELECT 
                 o.id, o.user_id, o.raza_id, o.nombre, o.codigo_identificacion, 
@@ -56,11 +56,16 @@ async def get_gallos_principales(
                 o.criador, o.propietario_actual, o.observaciones,
                 o.numero_registro, o.tipo_registro
             FROM gallos o 
-            WHERE o.id IN (
-                SELECT DISTINCT g.id_gallo_genealogico 
-                FROM gallos g 
-                WHERE g.user_id = :user_id
-                AND g.id_gallo_genealogico IS NOT NULL
+            WHERE o.user_id = :user_id 
+            AND (
+                -- Gallos con genealogía: solo los principales (DISTINCT por id_gallo_genealogico)
+                o.id IN (
+                    SELECT DISTINCT g.id_gallo_genealogico 
+                    FROM gallos g 
+                    WHERE g.user_id = :user_id
+                    AND g.id_gallo_genealogico IS NOT NULL
+                )
+                -- Solo gallos con genealogía DISTINCT
             )
             ORDER BY o.created_at DESC
         """)
@@ -1575,7 +1580,8 @@ async def get_genealogia_completa(
                 "message": "Gallo sin genealogía registrada"
             }
         
-        print(f"🌳 Construyendo árbol genealógico para id_gallo_genealogico: {id_gallo_genealogico}")
+        print(f"🌳 Construyendo árbol genealógico para gallo_id: {gallo_id}")
+        print(f"🔑 ID genealógico encontrado: {id_gallo_genealogico}")
         
         # 2. Obtener TODA la familia usando id_gallo_genealogico
         query_familia = text("""
@@ -1631,21 +1637,46 @@ async def get_genealogia_completa(
         # 4. Construir árbol genealógico recursivo
         def construir_ancestros(gallo_id, profundidad=0, max_profundidad=10):
             """Construir árbol de ancestros recursivamente"""
-            if profundidad > max_profundidad or gallo_id not in gallos_dict:
+            if profundidad > max_profundidad:
                 return None
             
-            gallo = gallos_dict[gallo_id]
+            # Si el gallo no está en la familia, buscarlo directamente en la DB
+            if gallo_id not in gallos_dict:
+                query_individual = text("""
+                    SELECT id, nombre, codigo_identificacion, padre_id, madre_id,
+                           foto_principal_url, url_foto_cloudinary, tipo_registro
+                    FROM gallos WHERE id = :gallo_id AND user_id = :user_id
+                """)
+                gallo_result = db.execute(query_individual, {
+                    "gallo_id": gallo_id, 
+                    "user_id": current_user_id
+                }).fetchone()
+                
+                if not gallo_result:
+                    return None
+                
+                gallo = {
+                    "id": gallo_result.id,
+                    "nombre": gallo_result.nombre,
+                    "codigo_identificacion": gallo_result.codigo_identificacion,
+                    "padre_id": gallo_result.padre_id,
+                    "madre_id": gallo_result.madre_id,
+                    "foto_principal_url": gallo_result.foto_principal_url or gallo_result.url_foto_cloudinary,
+                    "tipo_registro": gallo_result.tipo_registro or "individual"
+                }
+            else:
+                gallo = gallos_dict[gallo_id]
             nodo = {
                 "id": gallo["id"],
                 "nombre": gallo["nombre"],
                 "codigo_identificacion": gallo["codigo_identificacion"],
                 "foto_principal_url": gallo["foto_principal_url"],
                 "tipo_registro": gallo["tipo_registro"],
-                "raza_id": gallo["raza_id"],
-                "peso": gallo["peso"],
-                "altura": gallo["altura"],
-                "color": gallo["color"],
-                "estado": gallo["estado"],
+                "raza_id": gallo.get("raza_id"),
+                "peso": gallo.get("peso"),
+                "altura": gallo.get("altura"),
+                "color": gallo.get("color"),
+                "estado": gallo.get("estado"),
                 "padre": None,
                 "madre": None
             }
@@ -1676,7 +1707,11 @@ async def get_genealogia_completa(
         
         generaciones = calcular_generaciones(arbol_genealogico)
         
-        return {
+        print(f"🌳 Árbol construido para gallo {gallo_id}")
+        print(f"📊 Estadísticas: {total_ancestros} ancestros, {generaciones} generaciones")
+        print(f"👥 Familia completa: {len(familia_result)} gallos")
+        
+        response_data = {
             "success": True,
             "data": {
                 "gallo_base": {
@@ -1706,6 +1741,10 @@ async def get_genealogia_completa(
             },
             "message": f"Árbol genealógico completo con {len(familia_result)} gallos"
         }
+        
+        print(f"📤 Respuesta generada con estructura: {list(response_data['data'].keys())}")
+        
+        return response_data
         
     except HTTPException:
         raise
