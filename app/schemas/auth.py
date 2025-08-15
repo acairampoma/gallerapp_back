@@ -89,6 +89,7 @@ class UserResponse(BaseModel):
     is_active: bool
     is_verified: bool
     is_premium: bool
+    es_admin: bool  # 👑 NUEVO: Campo admin
     last_login: Optional[datetime]
     created_at: datetime
 
