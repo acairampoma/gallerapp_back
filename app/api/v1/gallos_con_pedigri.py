@@ -1128,11 +1128,11 @@ async def exportar_ficha_gallo(
                 m.id as madre_id, m.nombre as madre_nombre, m.codigo_identificacion as madre_codigo,
                 m.foto_principal_url as madre_foto, mr.nombre as madre_raza
             FROM gallos g
-            LEFT JOIN razas r ON CAST(g.raza_id AS INTEGER) = r.id
+            LEFT JOIN razas r ON g.raza_id = r.codigo
             LEFT JOIN gallos p ON g.padre_id = p.id
-            LEFT JOIN razas pr ON CAST(p.raza_id AS INTEGER) = pr.id
+            LEFT JOIN razas pr ON p.raza_id = pr.codigo
             LEFT JOIN gallos m ON g.madre_id = m.id
-            LEFT JOIN razas mr ON CAST(m.raza_id AS INTEGER) = mr.id
+            LEFT JOIN razas mr ON m.raza_id = mr.codigo
             WHERE g.id = :gallo_id AND g.user_id = :user_id
         """)
         
@@ -1346,11 +1346,11 @@ async def descargar_pdf_gallo(
                 m.id as madre_id, m.nombre as madre_nombre, m.codigo_identificacion as madre_codigo,
                 m.foto_principal_url as madre_foto, mr.nombre as madre_raza
             FROM gallos g
-            LEFT JOIN razas r ON CAST(g.raza_id AS INTEGER) = r.id
+            LEFT JOIN razas r ON g.raza_id = r.codigo
             LEFT JOIN gallos p ON g.padre_id = p.id
-            LEFT JOIN razas pr ON CAST(p.raza_id AS INTEGER) = pr.id
+            LEFT JOIN razas pr ON p.raza_id = pr.codigo
             LEFT JOIN gallos m ON g.madre_id = m.id
-            LEFT JOIN razas mr ON CAST(m.raza_id AS INTEGER) = mr.id
+            LEFT JOIN razas mr ON m.raza_id = mr.codigo
             WHERE g.id = :gallo_id AND g.user_id = :user_id
         """)
         
