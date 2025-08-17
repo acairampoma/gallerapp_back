@@ -3,9 +3,3 @@ builder = "NIXPACKS"
 
 [deploy]
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-
-[env]
-ENVIRONMENT = "railway"
-SENDGRID_API_KEY = "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"
-SENDGRID_FROM_EMAIL = "alancairampoma@gmail.com"
-SENDGRID_FROM_NAME = "Casta de Gallos"
