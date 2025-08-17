@@ -1,7 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+import random
+import string
 from app.models.user import User
 from app.models.profile import Profile
+from app.models.password_reset_token import PasswordResetToken
 from app.schemas.auth import UserRegister
 from app.core.security import SecurityService
 from app.core.exceptions import AuthenticationException, ValidationException
@@ -110,6 +113,95 @@ class AuthService:
         
         # Hashear nueva contraseña y actualizar
         user.password_hash = SecurityService.get_password_hash(new_password)
+        db.commit()
+        
+        return True
+    
+    # 🔐 MÉTODOS PARA RECUPERACIÓN DE CONTRASEÑA
+    
+    @staticmethod
+    def generate_reset_code() -> str:
+        """Generar código de 6 dígitos"""
+        return ''.join(random.choices(string.digits, k=6))
+    
+    @staticmethod
+    def request_password_reset(db: Session, email: str) -> bool:
+        """Solicitar recuperación de contraseña"""
+        
+        # Buscar usuario por email
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            # Por seguridad, no revelamos si el email existe
+            return True
+        
+        # Generar código y fecha de expiración (15 minutos)
+        code = AuthService.generate_reset_code()
+        expires_at = datetime.utcnow() + timedelta(minutes=15)
+        
+        # Invalidar tokens anteriores del usuario
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used == False
+        ).update({"used": True})
+        
+        # Crear nuevo token
+        reset_token = PasswordResetToken(
+            user_id=user.id,
+            email=user.email,
+            token=code,
+            expires_at=expires_at
+        )
+        
+        db.add(reset_token)
+        db.commit()
+        
+        # TODO: Enviar email con el código
+        print(f"🔐 Código de recuperación para {email}: {code}")
+        
+        return True
+    
+    @staticmethod
+    def verify_reset_code(db: Session, email: str, code: str) -> bool:
+        """Verificar código de recuperación"""
+        
+        token = db.query(PasswordResetToken).filter(
+            PasswordResetToken.email == email,
+            PasswordResetToken.token == code,
+            PasswordResetToken.used == False,
+            PasswordResetToken.expires_at > datetime.utcnow()
+        ).first()
+        
+        return token is not None
+    
+    @staticmethod
+    def reset_password_with_code(db: Session, email: str, code: str, new_password: str) -> bool:
+        """Resetear contraseña usando código de verificación"""
+        
+        # Verificar código válido
+        token = db.query(PasswordResetToken).filter(
+            PasswordResetToken.email == email,
+            PasswordResetToken.token == code,
+            PasswordResetToken.used == False,
+            PasswordResetToken.expires_at > datetime.utcnow()
+        ).first()
+        
+        if not token:
+            return False
+        
+        # Obtener usuario
+        user = db.query(User).filter(User.id == token.user_id).first()
+        if not user:
+            return False
+        
+        # Actualizar contraseña
+        user.password_hash = SecurityService.get_password_hash(new_password)
+        
+        # Marcar token como usado
+        token.used = True
+        
+        # Invalidar todos los refresh tokens del usuario (forzar re-login)
+        user.refresh_token = None
+        
         db.commit()
         
         return True

@@ -4,7 +4,9 @@ from app.database import get_db
 from app.schemas.auth import (
     UserRegister, UserLogin, TokenRefresh, ChangePassword,
     LoginResponse, RegisterResponse, Token, 
-    UserResponse, MessageResponse, LogoutResponse
+    UserResponse, MessageResponse, LogoutResponse,
+    ForgotPasswordRequest, VerifyResetCodeRequest, 
+    ResetPasswordRequest, PasswordResetResponse
 )
 from app.schemas.profile import ProfileResponse
 from app.services.auth_service import AuthService
@@ -161,3 +163,58 @@ async def protected_test(token_data: dict = Depends(verify_token_dependency)):
     return MessageResponse(
         message=f"¡Acceso autorizado! Token válido para usuario ID: {token_data.get('sub')}"
     )
+
+# 🔐 ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA
+
+@router.post("/forgot-password", response_model=PasswordResetResponse)
+async def forgot_password(
+    request: ForgotPasswordRequest, 
+    db: Session = Depends(get_db)
+):
+    """🔐 Solicitar recuperación de contraseña"""
+    success = AuthService.request_password_reset(db, request.email)
+    
+    return PasswordResetResponse(
+        message="Si el email existe, recibirás un código de recuperación",
+        next_step="verify_code"
+    )
+
+@router.post("/verify-reset-code", response_model=PasswordResetResponse)
+async def verify_reset_code(
+    request: VerifyResetCodeRequest,
+    db: Session = Depends(get_db)
+):
+    """🔐 Verificar código de recuperación"""
+    is_valid = AuthService.verify_reset_code(db, request.email, request.code)
+    
+    if is_valid:
+        return PasswordResetResponse(
+            message="Código válido. Puedes cambiar tu contraseña",
+            next_step="reset_password"
+        )
+    else:
+        return PasswordResetResponse(
+            message="Código inválido o expirado",
+            success=False
+        )
+
+@router.post("/reset-password", response_model=PasswordResetResponse)
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    """🔐 Resetear contraseña con código"""
+    success = AuthService.reset_password_with_code(
+        db, request.email, request.code, request.new_password
+    )
+    
+    if success:
+        return PasswordResetResponse(
+            message="Contraseña cambiada exitosamente",
+            next_step="login"
+        )
+    else:
+        return PasswordResetResponse(
+            message="Error al cambiar contraseña. Código inválido",
+            success=False
+        )

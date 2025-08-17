@@ -1268,6 +1268,12 @@ async def exportar_ficha_gallo(
             print(f"🔥 Generando PDF para {gallo_result.nombre}...")
             
             # Generar PDF usando ReportLab (compatible con Railway)
+            if pdf_service_reportlab is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Servicio de PDF no disponible - ReportLab no instalado"
+                )
+            
             pdf_bytes = pdf_service_reportlab.generar_ficha_gallo_pdf(ficha_data)
             
             if pdf_bytes:
@@ -1477,6 +1483,12 @@ async def descargar_pdf_gallo(
         
         # 6. GENERAR PDF
         print(f"📥 Generando PDF directo para descarga: {gallo_result.nombre}")
+        
+        if pdf_service_reportlab is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Servicio de PDF no disponible - ReportLab no instalado"
+            )
         
         pdf_bytes = pdf_service_reportlab.generar_ficha_gallo_pdf(ficha_data)
         

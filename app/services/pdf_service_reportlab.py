@@ -26,6 +26,9 @@ class PDFServiceReportLab:
     """🔥 Servicio épico para generar PDFs profesionales con ReportLab"""
     
     def __init__(self):
+        if not REPORTLAB_AVAILABLE:
+            raise ImportError("ReportLab no está disponible")
+            
         # Colores épicos de Casto de Gallos
         self.primary_color = HexColor('#2c5530')
         self.success_color = HexColor('#4CAF50')
@@ -428,4 +431,8 @@ class PDFServiceReportLab:
 
 
 # 🔥 INSTANCIA GLOBAL DEL SERVICIO REPORTLAB
-pdf_service_reportlab = PDFServiceReportLab()
+try:
+    pdf_service_reportlab = PDFServiceReportLab()
+except ImportError:
+    pdf_service_reportlab = None
+    print("⚠️ PDFServiceReportLab no disponible - usando servicio alternativo")

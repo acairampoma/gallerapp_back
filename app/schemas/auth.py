@@ -124,3 +124,29 @@ class LogoutResponse(BaseModel):
     success: bool = True
     redirect_to: str = "login"
     clear_session: bool = True
+
+# 🔐 ESQUEMAS PARA RECUPERACIÓN DE CONTRASEÑA
+class ForgotPasswordRequest(BaseModel):
+    """Schema para solicitar recuperación de contraseña"""
+    email: EmailStr
+
+class VerifyResetCodeRequest(BaseModel):
+    """Schema para verificar código de recuperación"""
+    email: EmailStr
+    code: str
+    
+class ResetPasswordRequest(BaseModel):
+    """Schema para resetear contraseña"""
+    email: EmailStr
+    code: str
+    new_password: str
+    
+    @validator('new_password')
+    def validate_new_password(cls, v):
+        return validate_password_strength(v)
+
+class PasswordResetResponse(BaseModel):
+    """Schema para respuestas de recuperación"""
+    message: str
+    success: bool = True
+    next_step: Optional[str] = None
