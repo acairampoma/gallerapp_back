@@ -19,6 +19,11 @@ class Settings:
     CLOUDINARY_API_KEY: str = config("CLOUDINARY_API_KEY", default="455285241939111")
     CLOUDINARY_API_SECRET: str = config("CLOUDINARY_API_SECRET", default="1uzQrkFD1Rbj8vPOClFBUEIwBn0")
     
+    # 📧 SendGrid Email Service
+    SENDGRID_API_KEY: str = config("SENDGRID_API_KEY")
+    SENDGRID_FROM_EMAIL: str = config("SENDGRID_FROM_EMAIL", default="alancairampoma@gmail.com")
+    SENDGRID_FROM_NAME: str = config("SENDGRID_FROM_NAME", default="Casta de Gallos")
+    
     # 🌐 CORS
     ALLOWED_HOSTS: List[str] = ["*"]
     

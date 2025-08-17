@@ -8,6 +8,7 @@ from app.models.password_reset_token import PasswordResetToken
 from app.schemas.auth import UserRegister
 from app.core.security import SecurityService
 from app.core.exceptions import AuthenticationException, ValidationException
+from app.services.email_service import email_service
 
 class AuthService:
     """Servicio de autenticación"""
@@ -155,8 +156,21 @@ class AuthService:
         db.add(reset_token)
         db.commit()
         
-        # TODO: Enviar email con el código
-        print(f"🔐 Código de recuperación para {email}: {code}")
+        # Obtener nombre del usuario para personalizar email
+        profile = AuthService.get_user_profile(db, user.id)
+        user_name = profile.nombre_completo if profile else None
+        
+        # Enviar email con el código
+        email_sent = email_service.send_password_reset_code(
+            to_email=user.email,
+            code=code,
+            user_name=user_name
+        )
+        
+        if email_sent:
+            print(f"✅ Email de recuperación enviado a {email}")
+        else:
+            print(f"❌ Error enviando email a {email}, pero código generado: {code}")
         
         return True
     
