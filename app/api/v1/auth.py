@@ -10,8 +10,13 @@ from app.schemas.auth import (
 )
 from app.schemas.profile import ProfileResponse
 from app.services.auth_service import AuthService
-from app.core.security import SecurityService, get_current_user_id, verify_token_dependency
+from app.core.security import SecurityService, get_current_user_id, verify_token_dependency, get_current_user
 from app.core.config import settings
+from app.models.user import User
+from app.models.fcm_token import FCMToken
+from typing import Dict, Any
+from datetime import datetime
+import logging
 
 router = APIRouter()
 
@@ -218,3 +223,109 @@ async def reset_password(
             message="Error al cambiar contraseña. Código inválido",
             success=False
         )
+
+# 🔔 FCM TOKEN ENDPOINTS - DIRECTOS EN AUTH
+
+logger = logging.getLogger(__name__)
+
+@router.post("/register-fcm-token")
+async def register_fcm_token(
+    token_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """🔔 Registrar token FCM - DIRECTO EN AUTH"""
+    
+    logger.info(f"🔔 Registrando token FCM para usuario {current_user.id}")
+    
+    try:
+        fcm_token = token_data.get("fcm_token")
+        platform = token_data.get("platform", "android")
+        device_info = token_data.get("device_info", "")
+        
+        if not fcm_token:
+            return {
+                "success": False,
+                "message": "fcm_token es requerido"
+            }
+        
+        # Buscar si ya existe
+        existing = db.query(FCMToken).filter(
+            FCMToken.fcm_token == fcm_token
+        ).first()
+        
+        if existing:
+            # Actualizar
+            existing.user_id = current_user.id
+            existing.platform = platform
+            existing.device_info = device_info
+            existing.is_active = True
+            existing.updated_at = datetime.now()
+            db.commit()
+            
+            logger.info(f"✅ Token FCM actualizado para usuario {current_user.id}")
+            return {
+                "success": True,
+                "message": "Token FCM actualizado exitosamente",
+                "token_id": existing.id,
+                "action": "updated"
+            }
+        else:
+            # Crear nuevo
+            new_token = FCMToken(
+                user_id=current_user.id,
+                fcm_token=fcm_token,
+                platform=platform,
+                device_info=device_info,
+                is_active=True
+            )
+            
+            db.add(new_token)
+            db.commit()
+            db.refresh(new_token)
+            
+            logger.info(f"✅ Nuevo token FCM registrado para usuario {current_user.id}")
+            return {
+                "success": True,
+                "message": "Token FCM registrado exitosamente",
+                "token_id": new_token.id,
+                "action": "created"
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Error registrando token FCM: {e}")
+        db.rollback()
+        return {
+            "success": False,
+            "message": f"Error registrando token: {str(e)}"
+        }
+
+@router.get("/my-fcm-tokens")
+async def get_my_fcm_tokens(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """🔔 Ver mis tokens FCM registrados"""
+    
+    tokens = db.query(FCMToken).filter(
+        FCMToken.user_id == current_user.id,
+        FCMToken.is_active == True
+    ).all()
+    
+    return {
+        "success": True,
+        "user_id": current_user.id,
+        "email": current_user.email,
+        "tokens": [
+            {
+                "id": t.id,
+                "token_preview": t.fcm_token[:20] + "...",
+                "platform": t.platform,
+                "device_info": t.device_info,
+                "created_at": t.created_at.isoformat(),
+                "updated_at": t.updated_at.isoformat()
+            }
+            for t in tokens
+        ],
+        "total_tokens": len(tokens)
+    }
