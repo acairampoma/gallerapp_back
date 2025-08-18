@@ -10,6 +10,7 @@ from app.database import Base
 # Importar modelos básicos sin dependencias
 from app.models.user import User
 from app.models.raza_simple import Raza
+from app.models.fcm_token import FCMToken
 
 # Importar modelos que dependen de otros (después)
 from app.models.profile import Profile
@@ -25,6 +26,7 @@ __all__ = [
     "Profile",
     "Raza",
     "Gallo",
+    "FCMToken",
     # "Vacuna"  # TEMPORALMENTE COMENTADO
     "Pelea",
     "Tope"
@@ -42,6 +44,7 @@ def get_all_models():
         'Profile': Profile, 
         'Raza': Raza,
         'Gallo': Gallo,
+        'FCMToken': FCMToken,
         # 'Vacuna': Vacuna  # TEMPORALMENTE COMENTADO
         'Pelea': Pelea,
         'Tope': Tope
