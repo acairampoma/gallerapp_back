@@ -306,12 +306,24 @@ async def root():
 @app.get("/health")
 async def health_check():
     """💓 Health Check"""
+    # Verificar estado de Firebase
+    firebase_status = "❌ No disponible"
+    try:
+        from app.services.firebase_service import firebase_service
+        if firebase_service._is_initialized:
+            firebase_status = "✅ Inicializado"
+        else:
+            firebase_status = "⚠️ No inicializado"
+    except:
+        firebase_status = "❌ Error al cargar"
+    
     return {
         "status": "✅ HEALTHY",
         "service": "CASTO_DE_GALLOSAPP API",
         "database": "PostgreSQL Railway",
         "storage": "Cloudinary",
         "auth": "JWT Ready",
+        "firebase": firebase_status,
         "environment": settings.ENVIRONMENT
     }
 

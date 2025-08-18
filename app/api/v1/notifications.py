@@ -64,6 +64,12 @@ async def register_fcm_token(
     """
     Registrar o actualizar token FCM de un usuario
     """
+    logger.info(f"🔔 === REGISTRO FCM TOKEN INICIADO ===")
+    logger.info(f"🔔 Usuario ID: {current_user.id}")
+    logger.info(f"🔔 Email: {current_user.email}")
+    logger.info(f"🔔 Token recibido: {token_request.fcm_token[:20]}...")
+    logger.info(f"🔔 Platform: {token_request.platform}")
+    
     try:
         # Buscar si ya existe el token
         existing_token = db.query(FCMToken).filter(
