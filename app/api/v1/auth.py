@@ -282,24 +282,24 @@ async def register_fcm_token(
         
         # Crear nuevo token activo
         new_token = FCMToken(
-                user_id=current_user.id,
-                fcm_token=fcm_token,
-                platform=platform,
-                device_info=device_info,
-                is_active=True
-            )
-            
-            db.add(new_token)
-            db.commit()
-            db.refresh(new_token)
-            
-            logger.info(f"✅ Nuevo token FCM registrado para usuario {current_user.id}")
-            return {
-                "success": True,
-                "message": "Token FCM registrado exitosamente",
-                "token_id": new_token.id,
-                "action": "created"
-            }
+            user_id=current_user.id,
+            fcm_token=fcm_token,
+            platform=platform,
+            device_info=device_info,
+            is_active=True
+        )
+        
+        db.add(new_token)
+        db.commit()
+        db.refresh(new_token)
+        
+        logger.info(f"✅ Nuevo token FCM registrado para usuario {current_user.id}")
+        return {
+            "success": True,
+            "message": "Token FCM registrado exitosamente",
+            "token_id": new_token.id,
+            "action": "created"
+        }
             
     except Exception as e:
         logger.error(f"❌ Error registrando token FCM: {e}")
