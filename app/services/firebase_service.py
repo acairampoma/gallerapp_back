@@ -31,9 +31,8 @@ class FirebaseService:
         return cls._instance
     
     def __init__(self):
-        if not self._is_initialized:
-            self._initialize_firebase()
-            self._is_initialized = True
+        # NO inicializar automáticamente - solo cuando se use
+        pass
     
     def _initialize_firebase(self):
         """Inicializar Firebase Admin SDK"""
@@ -63,12 +62,14 @@ class FirebaseService:
                     initialize_app(cred)
                     logger.info("🔥 Firebase Admin SDK inicializado desde archivo local")
                 else:
-                    logger.error("❌ No se encontraron credenciales de Firebase")
-                    raise Exception("Credenciales de Firebase no disponibles")
+                    logger.warning("⚠️ No se encontraron credenciales de Firebase - continuando sin notificaciones")
+                    self._is_initialized = False
+                    return
                     
         except Exception as e:
             logger.error(f"❌ Error inicializando Firebase: {e}")
-            raise e
+            # NO LANZAR ERROR - Solo loggear para que no rompa el backend
+            self._is_initialized = False
     
     def _get_firebase_config(self) -> Optional[Dict[str, Any]]:
         """Obtener configuración de Firebase desde variables de entorno"""
@@ -83,8 +84,13 @@ class FirebaseService:
             private_key_id = config('FIREBASE_PRIVATE_KEY_ID', default=None)
             
             if all([project_id, private_key, client_email]):
-                # Convertir la private_key (puede venir con \\n literal)
+                # Convertir la private_key (puede venir con \\n literal) - PROBLEMA MÁS COMÚN
                 private_key = private_key.replace('\\n', '\n')
+                
+                # Verificar que la clave privada tenga el formato correcto
+                if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+                    logger.error("❌ FIREBASE_PRIVATE_KEY mal formateada")
+                    return None
                 
                 firebase_config = {
                     "type": "service_account",
@@ -129,6 +135,12 @@ class FirebaseService:
         Returns:
             Resultado del envío
         """
+        # Inicializar Firebase solo cuando se use (LAZY LOADING)
+        if not self._is_initialized:
+            self._initialize_firebase()
+            if not self._is_initialized:
+                return {"success": False, "error": "Firebase no disponible"}
+        
         try:
             if not tokens:
                 return {"success": False, "error": "No tokens provided"}

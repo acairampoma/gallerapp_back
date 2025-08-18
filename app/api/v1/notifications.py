@@ -9,11 +9,22 @@ import logging
 from app.database import get_db
 from app.models.user import User
 from app.models.fcm_token import FCMToken
-from app.services.firebase_service import firebase_service
 from app.core.security import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+def get_firebase_service():
+    """Obtener servicio Firebase de forma lazy"""
+    try:
+        from app.services.firebase_service import firebase_service
+        return firebase_service
+    except Exception as e:
+        logger.error(f"❌ Error cargando Firebase: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Servicio de notificaciones no disponible"
+        )
 
 # ==========================================
 # 📊 MODELOS PYDANTIC
@@ -182,7 +193,8 @@ async def send_notification(
             }
         
         # Enviar notificación
-        result = await firebase_service.send_notification_to_tokens(
+        firebase = get_firebase_service()
+        result = await firebase.send_notification_to_tokens(
             tokens=tokens_to_send,
             title=notification.title,
             body=notification.body,
