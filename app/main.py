@@ -99,6 +99,14 @@ try:
 except ImportError as e:
     test_router = None
 
+# 🔔 FCM SIMPLE - SIN COMPLICACIONES
+try:
+    from app.api.v1.fcm_simple import router as fcm_router
+    print("   - ✅ FCM Simple endpoints cargados")
+except ImportError as e:
+    print(f"   - ❌ Error cargando FCM: {e}")
+    fcm_router = None
+
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
     
@@ -274,6 +282,14 @@ if test_router:
         tags=["🔧 Test"]
     )
     print("✅ Router de test activado")
+
+if fcm_router:
+    app.include_router(
+        fcm_router,
+        prefix="/fcm",
+        tags=["🔔 FCM Tokens"]
+    )
+    print("✅ Router FCM simple activado")
 
 # 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 
