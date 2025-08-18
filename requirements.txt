@@ -34,6 +34,9 @@ Jinja2==3.1.2
 # Email Service - SendGrid
 sendgrid==6.11.0
 
+# Firebase Admin SDK para notificaciones push
+firebase-admin==6.4.0
+
 # Development
 pytest==7.4.3
 httpx==0.25.2

@@ -56,3 +56,9 @@ tmp/
 
 # Railway
 .railway/
+
+# 🔥 Firebase Secrets - NUNCA SUBIR
+serviceAccountKey.json
+*serviceAccount*.json
+firebase-credentials.json
+RAILWAY_ENV_VARIABLES.txt
