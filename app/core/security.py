@@ -4,7 +4,9 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
 from app.core.config import settings
+from app.database import get_db
 
 # 🔐 Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -94,3 +96,29 @@ async def verify_token_dependency(credentials: HTTPAuthorizationCredentials = De
     """Verificar que el token sea válido"""
     token = credentials.credentials
     return SecurityService.verify_token(token)
+
+# 👤 Dependency para obtener usuario completo desde token
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """Obtener objeto User completo desde JWT token"""
+    from app.models.user import User  # Import local para evitar circular imports
+    
+    token = credentials.credentials
+    payload = SecurityService.verify_token(token)
+    user_id: int = payload.get("sub")
+    
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    # Buscar usuario en BD
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+    
+    return user
