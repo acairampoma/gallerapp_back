@@ -472,35 +472,57 @@ async def _notificar_admins_nuevo_pago(pago_id: int, user_id: int, db: Session):
         # No fallar el proceso principal por errores de notificación
 
 async def _enviar_push_admins_nuevo_pago(pago, db: Session):
-    """Envía notificaciones push a admins sobre nuevo pago"""
+    """🔔 FIREBASE: Envía notificaciones push a admins sobre nuevo pago"""
     try:
         from app.models.user import User
         from app.models.plan_catalogo import PlanCatalogo
-        from app.services.notification_service import notificar_nuevo_pago, obtener_emails_admin_notificaciones
+        from app.models.fcm_token import FCMToken
+        
+        logger.info(f"🔔 Iniciando notificación Firebase para pago {pago.id}")
         
         # Obtener datos del usuario
         usuario = db.query(User).filter(User.id == pago.user_id).first()
         user_email = usuario.email if usuario else f"Usuario {pago.user_id}"
+        user_name = getattr(usuario, 'nombre_completo', user_email)
         
-        # Obtener datos del plan
+        # Obtener datos del plan  
         plan = db.query(PlanCatalogo).filter(
             PlanCatalogo.codigo == pago.plan_codigo
         ).first()
         plan_nombre = plan.nombre if plan else pago.plan_codigo.title()
         
-        # Obtener emails de admins
-        admin_emails = await obtener_emails_admin_notificaciones()
+        # Obtener tokens FCM de todos los administradores
+        admin_tokens_query = db.query(FCMToken).join(User).filter(
+            User.es_admin == True,
+            FCMToken.is_active == True
+        ).all()
         
-        # Enviar notificaciones
-        await notificar_nuevo_pago(
-            user_email=user_email,
-            monto=float(pago.monto),
-            plan=plan_nombre,
-            admin_emails=admin_emails
-        )
+        admin_tokens = [token.fcm_token for token in admin_tokens_query]
+        logger.info(f"🔔 Encontrados {len(admin_tokens)} tokens de admin")
         
-        logger.info(f"Notificaciones push enviadas para pago {pago.id}")
+        if not admin_tokens:
+            logger.warning("⚠️ No se encontraron tokens FCM de administradores")
+            return
+        
+        # Importar Firebase service de forma lazy
+        try:
+            from app.api.v1.notifications import get_firebase_service
+            firebase = get_firebase_service()
+            
+            # Enviar notificación usando endpoint interno
+            result = await firebase.notify_admin_new_subscription(
+                admin_tokens=admin_tokens,
+                user_name=user_name,
+                user_email=user_email,
+                plan_name=plan_nombre,
+                amount=float(pago.monto)
+            )
+            
+            logger.info(f"🔔 FIREBASE: Notificación enviada a {result.get('success_count', 0)} admins para pago {pago.id}")
+            
+        except Exception as firebase_error:
+            logger.error(f"❌ Error Firebase para pago {pago.id}: {firebase_error}")
         
     except Exception as e:
-        logger.error(f"Error enviando push notifications para pago {pago.id}: {e}")
+        logger.error(f"❌ Error enviando push notifications para pago {pago.id}: {e}")
         # No fallar el proceso principal
