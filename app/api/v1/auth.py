@@ -249,30 +249,39 @@ async def register_fcm_token(
                 "message": "fcm_token es requerido"
             }
         
-        # Buscar si ya existe
-        existing = db.query(FCMToken).filter(
+        # Buscar si ya existe este token específico
+        existing_token = db.query(FCMToken).filter(
             FCMToken.fcm_token == fcm_token
         ).first()
         
-        if existing:
-            # Actualizar
-            existing.user_id = current_user.id
-            existing.platform = platform
-            existing.device_info = device_info
-            existing.is_active = True
-            existing.updated_at = datetime.now()
+        if existing_token:
+            # Token ya existe, solo actualizar info
+            existing_token.user_id = current_user.id
+            existing_token.platform = platform
+            existing_token.device_info = device_info
+            existing_token.is_active = True
+            existing_token.updated_at = datetime.now()
             db.commit()
             
             logger.info(f"✅ Token FCM actualizado para usuario {current_user.id}")
             return {
                 "success": True,
                 "message": "Token FCM actualizado exitosamente",
-                "token_id": existing.id,
+                "token_id": existing_token.id,
                 "action": "updated"
             }
-        else:
-            # Crear nuevo
-            new_token = FCMToken(
+        
+        # Desactivar tokens anteriores del mismo usuario + plataforma (un dispositivo por plataforma)
+        db.query(FCMToken).filter(
+            FCMToken.user_id == current_user.id,
+            FCMToken.platform == platform
+        ).update({
+            "is_active": False,
+            "updated_at": datetime.now()
+        })
+        
+        # Crear nuevo token activo
+        new_token = FCMToken(
                 user_id=current_user.id,
                 fcm_token=fcm_token,
                 platform=platform,
