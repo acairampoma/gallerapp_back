@@ -92,6 +92,13 @@ except ImportError as e:
     print(f"⚠️ Sistema de notificaciones no disponible: {e}")
     notifications_router = None
 
+# 🔧 TEST ENDPOINT TEMPORAL
+try:
+    from app.api.v1.test_endpoint import router as test_router
+    print("   - 🔧 Endpoint de test para Firebase")
+except ImportError as e:
+    test_router = None
+
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
     
@@ -259,6 +266,14 @@ if notifications_router:
         tags=["🔔 Notificaciones Firebase"]
     )
     print("✅ Router de notificaciones Firebase activado")
+
+if test_router:
+    app.include_router(
+        test_router,
+        prefix="/test",
+        tags=["🔧 Test"]
+    )
+    print("✅ Router de test activado")
 
 # 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 

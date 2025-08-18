@@ -31,8 +31,13 @@ class FirebaseService:
         return cls._instance
     
     def __init__(self):
-        # NO inicializar automáticamente - solo cuando se use
-        pass
+        # Intentar inicializar al crear la instancia
+        if not self._is_initialized:
+            try:
+                self._initialize_firebase()
+            except Exception as e:
+                logger.warning(f"⚠️ Firebase no se pudo inicializar al arrancar: {e}")
+                self._is_initialized = False
     
     def _initialize_firebase(self):
         """Inicializar Firebase Admin SDK"""
