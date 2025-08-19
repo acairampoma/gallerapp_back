@@ -40,40 +40,49 @@ class FirebaseService:
                 self._is_initialized = False
     
     def _initialize_firebase(self):
-        """Inicializar Firebase Admin SDK"""
+        """Inicializar Firebase Admin SDK - USANDO LA LÓGICA QUE FUNCIONA"""
         try:
             # Verificar si ya está inicializado
             if firebase_admin._apps:
                 logger.info("✅ Firebase Admin ya inicializado")
+                self._is_initialized = True
                 return
             
-            # Obtener credenciales desde variables de entorno
-            firebase_config = self._get_firebase_config()
+            # USAR LA MISMA LÓGICA QUE FUNCIONA EN test_endpoint.py
+            project_id = os.getenv('FIREBASE_PROJECT_ID')
+            private_key = os.getenv('FIREBASE_PRIVATE_KEY')
+            client_email = os.getenv('FIREBASE_CLIENT_EMAIL')
             
-            if firebase_config:
-                # Inicializar con credenciales de las variables de entorno
-                cred = credentials.Certificate(firebase_config)
-                initialize_app(cred)
-                logger.info("🔥 Firebase Admin SDK inicializado exitosamente desde variables de entorno")
-            else:
-                # Fallback: intentar desde archivo (solo desarrollo local)
-                service_account_path = os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                    'serviceAccountKey.json'
-                )
-                
-                if os.path.exists(service_account_path):
-                    cred = credentials.Certificate(service_account_path)
-                    initialize_app(cred)
-                    logger.info("🔥 Firebase Admin SDK inicializado desde archivo local")
-                else:
-                    logger.warning("⚠️ No se encontraron credenciales de Firebase - continuando sin notificaciones")
-                    self._is_initialized = False
-                    return
+            if not all([project_id, private_key, client_email]):
+                logger.error("❌ Faltan variables de Firebase")
+                self._is_initialized = False
+                return
+            
+            # Fix private key
+            private_key = private_key.replace('\\n', '\n')
+            
+            # Crear credenciales
+            cred_dict = {
+                "type": "service_account",
+                "project_id": project_id,
+                "private_key": private_key,
+                "client_email": client_email,
+                "private_key_id": os.getenv('FIREBASE_PRIVATE_KEY_ID', 'default'),
+                "client_id": os.getenv('FIREBASE_CLIENT_ID', ''),
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            }
+            
+            # Inicializar
+            cred = credentials.Certificate(cred_dict)
+            initialize_app(cred)
+            
+            logger.info("🔥 Firebase Admin SDK inicializado exitosamente con lógica corregida")
+            self._is_initialized = True
                     
         except Exception as e:
             logger.error(f"❌ Error inicializando Firebase: {e}")
-            # NO LANZAR ERROR - Solo loggear para que no rompa el backend
             self._is_initialized = False
     
     def _get_firebase_config(self) -> Optional[Dict[str, Any]]:
@@ -140,11 +149,15 @@ class FirebaseService:
         Returns:
             Resultado del envío
         """
-        # Inicializar Firebase solo cuando se use (LAZY LOADING)
-        if not self._is_initialized:
+        # FORZAR RE-INICIALIZACIÓN PARA ASEGURAR QUE FUNCIONE
+        try:
             self._initialize_firebase()
-            if not self._is_initialized:
-                return {"success": False, "error": "Firebase no disponible"}
+        except Exception as e:
+            logger.error(f"❌ Error en re-inicialización: {e}")
+            
+        if not self._is_initialized:
+            logger.error("❌ Firebase NO está disponible después de intentar inicializar")
+            return {"success": False, "error": "Firebase no disponible"}
         
         try:
             if not tokens:
