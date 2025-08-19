@@ -257,24 +257,30 @@ async def aprobar_pago(
         # Aprobar el pago
         pago.aprobar_pago(admin.id, request.notas)
         
-        # Activar plan del usuario
-        await _activar_plan_usuario(pago.user_id, pago.plan_codigo, db)
+        # Activar plan del usuario (quitar await porque no es async)
+        _activar_plan_usuario(pago.user_id, pago.plan_codigo, db)
         
         # 🔔 ENVIAR NOTIFICACIÓN FCM AL USUARIO
         try:
+            logger.info(f"🔔 === INICIANDO NOTIFICACIÓN DE APROBACIÓN PARA USER {pago.user_id} ===")
+            
             plan = db.query(PlanCatalogo).filter(
                 PlanCatalogo.codigo == pago.plan_codigo
             ).first()
             plan_nombre = plan.nombre if plan else pago.plan_codigo.title()
+            logger.info(f"📋 Plan encontrado: {plan_nombre}")
             
+            logger.info("🚀 Llamando a FCMNotificationService.notificar_suscripcion_aprobada_a_usuario...")
             await FCMNotificationService.notificar_suscripcion_aprobada_a_usuario(
                 db=db, 
                 user_id=pago.user_id, 
                 plan_nombre=plan_nombre
             )
-            logger.info(f"✅ Notificación FCM enviada a usuario {pago.user_id}")
+            logger.info(f"✅ Notificación FCM de aprobación completada para usuario {pago.user_id}")
         except Exception as e:
-            logger.error(f"⚠️ Error enviando notificación FCM: {e}")
+            logger.error(f"⚠️ Error enviando notificación FCM de aprobación: {e}")
+            import traceback
+            logger.error(f"📊 Traceback: {traceback.format_exc()}")
             # No fallar la aprobación por esto
         
         db.commit()
@@ -514,7 +520,7 @@ async def obtener_usuarios_admin(
 # FUNCIONES AUXILIARES
 # ========================================
 
-async def _activar_plan_usuario(user_id: int, plan_codigo: str, db: Session):
+def _activar_plan_usuario(user_id: int, plan_codigo: str, db: Session):
     """Activa el plan premium para un usuario tras aprobar el pago"""
     try:
         # Obtener el plan
