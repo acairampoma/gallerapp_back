@@ -291,6 +291,18 @@ if fcm_router:
     )
     print("✅ Router FCM simple activado")
 
+# 🔥 TEST NOTIFICATION ROUTER
+try:
+    from app.api.v1.test_notification import router as test_notification_router
+    app.include_router(
+        test_notification_router,
+        prefix="/test",
+        tags=["🧪 Test Notifications"]
+    )
+    print("✅ Router Test Notifications activado")
+except Exception as e:
+    print(f"⚠️ Error cargando Test Notifications router: {e}")
+
 # 🔄 TODOS LOS FALLBACKS ELIMINADOS - SOLO USAMOS LOS ARCHIVOS LIMPIOS
 
 # 🏠 ENDPOINTS BÁSICOS
