@@ -170,41 +170,43 @@ class FirebaseService:
                 "source": "galloapp_backend"
             })
             
-            # Crear mensaje
-            message = messaging.MulticastMessage(
-                notification=messaging.Notification(
-                    title=title,
-                    body=body
-                ),
-                data={k: str(v) for k, v in message_data.items()},  # Data debe ser strings
-                tokens=tokens
-            )
-            
-            # Enviar
-            response = messaging.send_multicast(message)
-            
-            # Procesar respuesta
+            # Enviar notificaciones una por una (más compatible)
             successful_tokens = []
             failed_tokens = []
             
-            for idx, resp in enumerate(response.responses):
-                if resp.success:
-                    successful_tokens.append(tokens[idx])
-                else:
+            for token in tokens:
+                try:
+                    # Crear mensaje individual
+                    message = messaging.Message(
+                        notification=messaging.Notification(
+                            title=title,
+                            body=body
+                        ),
+                        data={k: str(v) for k, v in message_data.items()},  # Data debe ser strings
+                        token=token
+                    )
+                    
+                    # Enviar individual
+                    response = messaging.send(message)
+                    successful_tokens.append(token)
+                    logger.info(f"✅ Notificación enviada exitosamente a token: {token[:20]}...")
+                    
+                except Exception as token_error:
                     failed_tokens.append({
-                        "token": tokens[idx],
-                        "error": str(resp.exception)
+                        "token": token,
+                        "error": str(token_error)
                     })
+                    logger.error(f"❌ Error enviando a token {token[:20]}...: {token_error}")
             
             result = {
-                "success": True,
-                "success_count": response.success_count,
-                "failure_count": response.failure_count,
+                "success": len(successful_tokens) > 0,
+                "success_count": len(successful_tokens),
+                "failure_count": len(failed_tokens),
                 "successful_tokens": successful_tokens,
                 "failed_tokens": failed_tokens
             }
             
-            logger.info(f"✅ Notificación enviada: {response.success_count}/{len(tokens)} exitosos")
+            logger.info(f"✅ Notificación enviada: {len(successful_tokens)}/{len(tokens)} exitosos")
             return result
             
         except Exception as e:
