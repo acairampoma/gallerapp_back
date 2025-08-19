@@ -19,6 +19,7 @@ from app.schemas.pago import (
     AccionAdminResponse,
     DashboardAdmin
 )
+from app.services.fcm_suscripciones_service import FCMNotificationService
 
 # Configurar logger
 logger = logging.getLogger("galloapp.admin")
@@ -259,8 +260,22 @@ async def aprobar_pago(
         # Activar plan del usuario
         await _activar_plan_usuario(pago.user_id, pago.plan_codigo, db)
         
-        # TODO: Enviar notificación al usuario
-        # await _notificar_usuario_plan_activado(pago.user_id, pago.plan_codigo)
+        # 🔔 ENVIAR NOTIFICACIÓN FCM AL USUARIO
+        try:
+            plan = db.query(PlanCatalogo).filter(
+                PlanCatalogo.codigo == pago.plan_codigo
+            ).first()
+            plan_nombre = plan.nombre if plan else pago.plan_codigo.title()
+            
+            await FCMNotificationService.notificar_suscripcion_aprobada_a_usuario(
+                db=db, 
+                user_id=pago.user_id, 
+                plan_nombre=plan_nombre
+            )
+            logger.info(f"✅ Notificación FCM enviada a usuario {pago.user_id}")
+        except Exception as e:
+            logger.error(f"⚠️ Error enviando notificación FCM: {e}")
+            # No fallar la aprobación por esto
         
         db.commit()
         
@@ -324,7 +339,23 @@ async def rechazar_pago(
         # Rechazar el pago
         pago.rechazar_pago(admin.id, request.notas)
         
-        # TODO: Notificar al usuario del rechazo
+        # 🔔 ENVIAR NOTIFICACIÓN FCM AL USUARIO
+        try:
+            plan = db.query(PlanCatalogo).filter(
+                PlanCatalogo.codigo == pago.plan_codigo
+            ).first()
+            plan_nombre = plan.nombre if plan else pago.plan_codigo.title()
+            
+            await FCMNotificationService.notificar_suscripcion_rechazada_a_usuario(
+                db=db, 
+                user_id=pago.user_id, 
+                plan_nombre=plan_nombre,
+                motivo=request.notas
+            )
+            logger.info(f"✅ Notificación FCM de rechazo enviada a usuario {pago.user_id}")
+        except Exception as e:
+            logger.error(f"⚠️ Error enviando notificación FCM de rechazo: {e}")
+            # No fallar el rechazo por esto
         
         db.commit()
         

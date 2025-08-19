@@ -22,6 +22,7 @@ from app.schemas.pago import (
     EstadisticasPagos
 )
 from app.services.qr_service import generar_qr_pago, validar_monto_yape, obtener_instrucciones_pago
+from app.services.fcm_suscripciones_service import FCMNotificationService
 
 # Configurar logger
 logger = logging.getLogger("galloapp.pagos")
@@ -198,8 +199,26 @@ async def confirmar_pago_realizado(
         # Crear notificaciones para administradores
         await _notificar_admins_nuevo_pago(pago.id, current_user_id, db)
         
-        # Enviar notificaciones push (nuevo)
-        await _enviar_push_admins_nuevo_pago(pago, db)
+        # 🔔 ENVIAR NOTIFICACIÓN FCM A ADMINS SOBRE NUEVA SUSCRIPCIÓN
+        try:
+            from app.models.user import User
+            usuario = db.query(User).filter(User.id == current_user_id).first()
+            user_email = usuario.email if usuario else f"Usuario {current_user_id}"
+            
+            plan = db.query(PlanCatalogo).filter(
+                PlanCatalogo.codigo == pago.plan_codigo
+            ).first()
+            plan_nombre = plan.nombre if plan else pago.plan_codigo.title()
+            
+            await FCMNotificationService.notificar_nueva_suscripcion_a_admins(
+                db=db,
+                usuario_email=user_email,
+                plan_nombre=plan_nombre
+            )
+            logger.info(f"✅ Notificación FCM enviada a admins sobre nueva suscripción de {user_email}")
+        except Exception as e:
+            logger.error(f"⚠️ Error enviando notificación FCM a admins: {e}")
+            # No fallar la confirmación por esto
         
         db.commit()
         
