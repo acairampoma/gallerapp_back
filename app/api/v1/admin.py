@@ -257,8 +257,8 @@ async def aprobar_pago(
         # Aprobar el pago
         pago.aprobar_pago(admin.id, request.notas)
         
-        # Activar plan del usuario (quitar await porque no es async)
-        _activar_plan_usuario(pago.user_id, pago.plan_codigo, db)
+        # Activar plan del usuario
+        await _activar_plan_usuario(pago.user_id, pago.plan_codigo, db)
         
         # 🔔 ENVIAR NOTIFICACIÓN FCM AL USUARIO
         try:
@@ -520,7 +520,7 @@ async def obtener_usuarios_admin(
 # FUNCIONES AUXILIARES
 # ========================================
 
-def _activar_plan_usuario(user_id: int, plan_codigo: str, db: Session):
+async def _activar_plan_usuario(user_id: int, plan_codigo: str, db: Session):
     """Activa el plan premium para un usuario tras aprobar el pago"""
     try:
         # Obtener el plan
