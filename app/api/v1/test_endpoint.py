@@ -70,3 +70,54 @@ async def test_init():
             "error": str(e),
             "tipo_error": type(e).__name__
         }
+
+@router.post("/test-broadcast")
+async def test_broadcast():
+    """Enviar notificación a TODOS los dispositivos registrados"""
+    try:
+        from app.database import get_db
+        from app.models.fcm_token import FCMToken
+        from app.services.firebase_service import firebase_service
+        
+        # Obtener sesión de BD
+        db = next(get_db())
+        
+        # Obtener TODOS los tokens activos
+        all_tokens = db.query(FCMToken).filter(
+            FCMToken.is_active == True
+        ).all()
+        
+        if not all_tokens:
+            return {
+                "success": False,
+                "message": "No hay tokens FCM registrados",
+                "sent_count": 0
+            }
+        
+        tokens_list = [token.fcm_token for token in all_tokens]
+        
+        # Enviar notificación de broadcast
+        result = await firebase_service.send_notification_to_tokens(
+            tokens=tokens_list,
+            title="🔥 Test Broadcast GalloApp",
+            body=f"Notificación enviada a {len(tokens_list)} dispositivos",
+            data={
+                "type": "test_broadcast",
+                "total_devices": str(len(tokens_list))
+            }
+        )
+        
+        return {
+            "success": result["success"],
+            "sent_count": result.get("success_count", 0),
+            "failed_count": result.get("failure_count", 0),
+            "total_tokens": len(tokens_list),
+            "message": f"Broadcast enviado a {result.get('success_count', 0)} de {len(tokens_list)} dispositivos"
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Error enviando broadcast"
+        }
