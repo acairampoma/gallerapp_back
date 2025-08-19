@@ -356,7 +356,8 @@ async def test_notification(
         tokens = [token.fcm_token for token in user_tokens]
         
         # Enviar notificación de prueba
-        result = await firebase_service.send_notification_to_tokens(
+        firebase = get_firebase_service()
+        result = await firebase.send_notification_to_tokens(
             tokens=tokens,
             title="🔥 Prueba GalloApp",
             body=f"¡Hola {current_user.email}! Las notificaciones funcionan perfectamente 🐓",
