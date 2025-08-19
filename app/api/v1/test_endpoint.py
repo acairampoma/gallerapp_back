@@ -72,7 +72,7 @@ async def test_init():
         }
 
 @router.post("/test-broadcast")
-async def test_broadcast():
+async def test_broadcast(notification_data: dict = None):
     """Enviar notificación a TODOS los dispositivos registrados"""
     try:
         from app.database import get_db
@@ -96,28 +96,54 @@ async def test_broadcast():
         
         tokens_list = [token.fcm_token for token in all_tokens]
         
+        # Usar datos del request o valores por defecto
+        title = notification_data.get("title", "🔥 Test Broadcast GalloApp") if notification_data else "🔥 Test Broadcast GalloApp"
+        body = notification_data.get("body", f"Notificación enviada a {len(tokens_list)} dispositivos") if notification_data else f"Notificación enviada a {len(tokens_list)} dispositivos"
+        data = notification_data.get("data", {}) if notification_data else {}
+        
+        # Agregar datos adicionales
+        data.update({
+            "type": "test_broadcast",
+            "total_devices": str(len(tokens_list))
+        })
+        
+        print(f"🔔 === ENVIANDO NOTIFICACIÓN ===")
+        print(f"📱 Tokens encontrados: {len(tokens_list)}")
+        print(f"📱 Primer token: {tokens_list[0][:20]}...")
+        print(f"📧 Título: {title}")
+        print(f"📧 Cuerpo: {body}")
+        
         # Enviar notificación de broadcast
         result = await firebase_service.send_notification_to_tokens(
             tokens=tokens_list,
-            title="🔥 Test Broadcast GalloApp",
-            body=f"Notificación enviada a {len(tokens_list)} dispositivos",
-            data={
-                "type": "test_broadcast",
-                "total_devices": str(len(tokens_list))
-            }
+            title=title,
+            body=body,
+            data=data
         )
+        
+        print(f"📊 Resultado: {result}")
         
         return {
             "success": result["success"],
             "sent_count": result.get("success_count", 0),
             "failed_count": result.get("failure_count", 0),
             "total_tokens": len(tokens_list),
-            "message": f"Broadcast enviado a {result.get('success_count', 0)} de {len(tokens_list)} dispositivos"
+            "message": f"Broadcast enviado a {result.get('success_count', 0)} de {len(tokens_list)} dispositivos",
+            "debug_info": {
+                "tokens_found": len(tokens_list),
+                "firebase_result": result
+            }
         }
         
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ ERROR COMPLETO: {error_trace}")
+        
         return {
             "success": False,
             "error": str(e),
-            "message": "Error enviando broadcast"
+            "error_type": type(e).__name__,
+            "message": "Error enviando broadcast",
+            "traceback": error_trace
         }

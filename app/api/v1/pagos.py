@@ -201,15 +201,19 @@ async def confirmar_pago_realizado(
         
         # 🔔 ENVIAR NOTIFICACIÓN FCM A ADMINS SOBRE NUEVA SUSCRIPCIÓN
         try:
+            logger.info("🔔 === INICIANDO PROCESO DE NOTIFICACIÓN FCM ====")
             from app.models.user import User
             usuario = db.query(User).filter(User.id == current_user_id).first()
             user_email = usuario.email if usuario else f"Usuario {current_user_id}"
+            logger.info(f"📧 Usuario encontrado: {user_email}")
             
             plan = db.query(PlanCatalogo).filter(
                 PlanCatalogo.codigo == pago.plan_codigo
             ).first()
             plan_nombre = plan.nombre if plan else pago.plan_codigo.title()
+            logger.info(f"📋 Plan encontrado: {plan_nombre}")
             
+            logger.info("🚀 Llamando a FCMNotificationService...")
             await FCMNotificationService.notificar_nueva_suscripcion_a_admins(
                 db=db,
                 usuario_email=user_email,
@@ -218,6 +222,9 @@ async def confirmar_pago_realizado(
             logger.info(f"✅ Notificación FCM enviada a admins sobre nueva suscripción de {user_email}")
         except Exception as e:
             logger.error(f"⚠️ Error enviando notificación FCM a admins: {e}")
+            logger.error(f"🔍 Stack trace completo: {e.__class__.__name__}: {str(e)}")
+            import traceback
+            logger.error(f"📊 Traceback: {traceback.format_exc()}")
             # No fallar la confirmación por esto
         
         db.commit()
