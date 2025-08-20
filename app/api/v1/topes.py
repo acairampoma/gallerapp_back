@@ -281,12 +281,12 @@ async def create_tope(
                 detail=f"tipo_condicion_fisica debe ser uno de: excelente_desempeno, buen_desempeno, regular, necesita_mejorar. Recibido: {tipo_condicion_fisica}"
             )
         
-        # Validar duración si se proporciona
-        if duracion_minutos is not None and (duracion_minutos < 5 or duracion_minutos > 480):
+        # Validar duración si se proporciona (mínimo 1 minuto para evitar problemas con Integer)
+        if duracion_minutos is not None and (duracion_minutos < 1 or duracion_minutos > 480):
             logger.error(f"duracion_minutos inválida: {duracion_minutos}")
             raise HTTPException(
                 status_code=400,
-                detail=f"duracion_minutos debe estar entre 5 y 480 minutos. Recibido: {duracion_minutos}"
+                detail=f"duracion_minutos debe estar entre 1 y 480 minutos. Recibido: {duracion_minutos}"
             )
         
         # Crear objeto tope
