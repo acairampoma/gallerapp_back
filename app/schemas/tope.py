@@ -29,7 +29,7 @@ class TopeBase(BaseModel):
     descripcion: Optional[str] = Field(None, max_length=1000, description="Descripción detallada del entrenamiento")
     fecha_tope: datetime = Field(..., description="Fecha y hora del tope")
     ubicacion: Optional[str] = Field(None, min_length=2, max_length=255, description="Lugar del entrenamiento")
-    duracion_minutos: Optional[int] = Field(None, ge=5, le=480, description="Duración en minutos (5-480 min)")
+    duracion_minutos: Optional[int] = Field(None, ge=1, le=480, description="Duración en minutos (1-480 min)")
     tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = Field(None, description="Tipo de entrenamiento")
     des_sparring: Optional[str] = Field(None, max_length=255, description="Descripción de sparring")
     tipo_resultado: Optional[TipoEvaluacionEnum] = Field(None, description="Evaluación del resultado")
@@ -62,8 +62,8 @@ class TopeBase(BaseModel):
     @validator('duracion_minutos')
     def validar_duracion(cls, v):
         """Duración debe ser razonable"""
-        if v is not None and v < 5:
-            raise ValueError('La duración mínima es de 5 minutos')
+        if v is not None and v < 1:
+            raise ValueError('La duración mínima es de 1 minuto')
         if v is not None and v > 480:  # 8 horas máximo
             raise ValueError('La duración máxima es de 8 horas (480 minutos)')
         return v
@@ -78,7 +78,7 @@ class TopeUpdate(BaseModel):
     descripcion: Optional[str] = Field(None, max_length=1000, description="Descripción del entrenamiento")
     fecha_tope: Optional[datetime] = Field(None, description="Fecha y hora del tope")
     ubicacion: Optional[str] = Field(None, min_length=2, max_length=255, description="Lugar del entrenamiento")
-    duracion_minutos: Optional[int] = Field(None, ge=5, le=480, description="Duración en minutos")
+    duracion_minutos: Optional[int] = Field(None, ge=1, le=480, description="Duración en minutos")
     tipo_entrenamiento: Optional[TipoEntrenamientoEnum] = Field(None, description="Tipo de entrenamiento")
     des_sparring: Optional[str] = Field(None, max_length=255, description="Descripción de sparring")
     tipo_resultado: Optional[TipoEvaluacionEnum] = Field(None, description="Evaluación del resultado")
