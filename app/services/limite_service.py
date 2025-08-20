@@ -122,11 +122,15 @@ class LimiteService:
     def contar_vacunas(self, user_id: int, gallo_id: Optional[int] = None) -> int:
         """Cuenta las vacunas del usuario o de un gallo específico"""
         try:
-            # Asumiendo que tienes modelo Vacuna similar a Tope/Pelea
-            query = self.db.query(func.count(Vacuna.id)).filter(Vacuna.user_id == user_id)
-            
+            # Las vacunas no tienen user_id, se relacionan a través del gallo
             if gallo_id:
-                query = query.filter(Vacuna.gallo_id == gallo_id)
+                # Contar vacunas específicas de un gallo
+                query = self.db.query(func.count(Vacuna.id)).filter(Vacuna.gallo_id == gallo_id)
+            else:
+                # Contar todas las vacunas del usuario (a través de sus gallos)
+                query = self.db.query(func.count(Vacuna.id)).join(
+                    Gallo, Vacuna.gallo_id == Gallo.id
+                ).filter(Gallo.user_id == user_id)
             
             count = query.scalar() or 0
             logger.debug(f"Usuario {user_id}, gallo {gallo_id}: {count} vacunas")
