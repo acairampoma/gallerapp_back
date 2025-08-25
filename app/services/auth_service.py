@@ -219,3 +219,45 @@ class AuthService:
         db.commit()
         
         return True
+    
+    @staticmethod
+    def delete_user_account(db: Session, user_id: int, password: str) -> bool:
+        """
+        Eliminar cuenta de usuario permanentemente
+        Apple requiere eliminación real, no solo desactivación
+        """
+        
+        # Obtener usuario
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise AuthenticationException("Usuario no encontrado")
+        
+        # Verificar contraseña
+        if not SecurityService.verify_password(password, user.password_hash):
+            raise AuthenticationException("Contraseña incorrecta")
+        
+        # Obtener email antes de eliminar (para el log)
+        user_email = user.email
+        
+        # Eliminar perfil asociado
+        profile = db.query(Profile).filter(Profile.user_id == user_id).first()
+        if profile:
+            db.delete(profile)
+        
+        # Eliminar tokens de recuperación de contraseña
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user_id
+        ).delete()
+        
+        # Los FCM tokens se eliminan automáticamente por cascade
+        # Las suscripciones e inversiones también por las relaciones
+        
+        # Eliminar usuario (HARD DELETE como requiere Apple)
+        db.delete(user)
+        
+        # Confirmar eliminación
+        db.commit()
+        
+        print(f"✅ Cuenta eliminada permanentemente: {user_email}")
+        
+        return True

@@ -6,12 +6,14 @@ from app.schemas.auth import (
     LoginResponse, RegisterResponse, Token, 
     UserResponse, MessageResponse, LogoutResponse,
     ForgotPasswordRequest, VerifyResetCodeRequest, 
-    ResetPasswordRequest, PasswordResetResponse
+    ResetPasswordRequest, PasswordResetResponse,
+    DeleteAccountRequest, DeleteAccountResponse
 )
 from app.schemas.profile import ProfileResponse
 from app.services.auth_service import AuthService
 from app.core.security import SecurityService, get_current_user_id, verify_token_dependency, get_current_user
 from app.core.config import settings
+from app.core.exceptions import AuthenticationException
 from app.models.user import User
 from app.models.fcm_token import FCMToken
 from typing import Dict, Any
@@ -222,6 +224,62 @@ async def reset_password(
         return PasswordResetResponse(
             message="Error al cambiar contraseña. Código inválido",
             success=False
+        )
+
+# 🗑️ ENDPOINT DE ELIMINACIÓN DE CUENTA
+
+@router.delete("/delete-account", response_model=DeleteAccountResponse)
+async def delete_account(
+    delete_request: DeleteAccountRequest,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    🗑️ Eliminar cuenta de usuario permanentemente
+    Apple requiere eliminación real, no solo desactivación
+    
+    Requiere:
+    - Contraseña actual para confirmar
+    - Texto de confirmación: "ELIMINAR MI CUENTA"
+    """
+    
+    try:
+        # Obtener información del usuario antes de eliminar
+        user = AuthService.get_user_by_id(db, current_user_id)
+        profile = AuthService.get_user_profile(db, current_user_id)
+        user_email = user.email
+        user_name = profile.nombre_completo if profile else user_email
+        
+        # Eliminar cuenta usando el servicio
+        success = AuthService.delete_user_account(
+            db, 
+            current_user_id, 
+            delete_request.password
+        )
+        
+        if success:
+            return DeleteAccountResponse(
+                message=f"Cuenta de {user_name} eliminada permanentemente. Lamentamos que te vayas.",
+                success=True,
+                account_deleted=True,
+                redirect_to="login"
+            )
+        
+    except AuthenticationException as e:
+        # Contraseña incorrecta o usuario no encontrado
+        return DeleteAccountResponse(
+            message=str(e),
+            success=False,
+            account_deleted=False,
+            redirect_to=None
+        )
+    except Exception as e:
+        # Otro error
+        return DeleteAccountResponse(
+            message=f"Error eliminando cuenta: {str(e)}",
+            success=False,
+            account_deleted=False,
+            redirect_to=None
         )
 
 # 🔔 FCM TOKEN ENDPOINTS - DIRECTOS EN AUTH

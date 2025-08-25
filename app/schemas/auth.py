@@ -150,3 +150,22 @@ class PasswordResetResponse(BaseModel):
     message: str
     success: bool = True
     next_step: Optional[str] = None
+
+# 🗑️ ESQUEMAS PARA ELIMINACIÓN DE CUENTA
+class DeleteAccountRequest(BaseModel):
+    """Schema para solicitar eliminación de cuenta"""
+    password: str
+    confirmation_text: str
+    
+    @validator('confirmation_text')
+    def validate_confirmation(cls, v):
+        if v != "ELIMINAR MI CUENTA":
+            raise ValueError('Debes escribir exactamente: ELIMINAR MI CUENTA')
+        return v
+
+class DeleteAccountResponse(BaseModel):
+    """Schema para respuesta de eliminación de cuenta"""
+    message: str = "Cuenta eliminada exitosamente"
+    success: bool = True
+    account_deleted: bool = True
+    redirect_to: str = "login"
