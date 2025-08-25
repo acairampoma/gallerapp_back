@@ -267,19 +267,25 @@ async def delete_account(
         
     except AuthenticationException as e:
         # Contraseña incorrecta o usuario no encontrado
-        return DeleteAccountResponse(
-            message=str(e),
-            success=False,
-            account_deleted=False,
-            redirect_to=None
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": True,
+                "message": str(e),
+                "error_code": "AUTH_ERROR"
+            }
         )
     except Exception as e:
-        # Otro error
-        return DeleteAccountResponse(
-            message=f"Error eliminando cuenta: {str(e)}",
-            success=False,
-            account_deleted=False,
-            redirect_to=None
+        # Otro error  
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": True,
+                "message": f"Error eliminando cuenta: {str(e)}",
+                "error_code": "INTERNAL_ERROR"
+            }
         )
 
 # 🔔 FCM TOKEN ENDPOINTS - DIRECTOS EN AUTH

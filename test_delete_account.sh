@@ -9,8 +9,8 @@ echo "🗑️ PRUEBA DE ELIMINACIÓN DE CUENTA"
 echo "==========================================="
 
 # URL base (cambiar según necesidad)
-# BASE_URL="https://gallerappback-production.up.railway.app"
-BASE_URL="http://localhost:8000"  # Para pruebas locales
+BASE_URL="https://gallerappback-production.up.railway.app"
+# BASE_URL="http://localhost:8000"  # Para pruebas locales
 
 # Colores para output
 RED='\033[0;31m'
