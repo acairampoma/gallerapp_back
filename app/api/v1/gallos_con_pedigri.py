@@ -1519,6 +1519,145 @@ async def descargar_pdf_gallo(
             detail=f"Error generando PDF para descarga: {str(e)}"
         )
 
+# 🗑️ ELIMINAR GALLO - ENDPOINT QUE FALTABA
+@router.delete("/{gallo_id}")
+async def delete_gallo(
+    gallo_id: int,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    🗑️ ELIMINAR GALLO Y RECURSOS ASOCIADOS
+    
+    - Elimina fotos de Cloudinary
+    - Elimina registros relacionados (peleas, topes, vacunas)
+    - Solo el propietario puede eliminar
+    - Elimina genealogía asociada si es el gallo principal
+    """
+    try:
+        # 1. Verificar que el gallo existe y pertenece al usuario
+        query_gallo = text("SELECT * FROM gallos WHERE id = :gallo_id AND user_id = :user_id")
+        gallo = db.execute(query_gallo, {"gallo_id": gallo_id, "user_id": current_user_id}).fetchone()
+        
+        if not gallo:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Gallo no encontrado"
+            )
+        
+        print(f"🗑️ Eliminando gallo: {gallo.nombre} (ID: {gallo_id})")
+        
+        # 2. Eliminar fotos de Cloudinary si existen
+        try:
+            if gallo.codigo_identificacion:
+                cloudinary_result = CloudinaryService.batch_delete_gallo_photos(
+                    gallo_codigo=gallo.codigo_identificacion,
+                    user_id=current_user_id
+                )
+                print(f"📸 Fotos eliminadas de Cloudinary: {cloudinary_result}")
+        except Exception as cloudinary_error:
+            print(f"⚠️ Error eliminando fotos de Cloudinary: {cloudinary_error}")
+            # No fallar la eliminación por error de Cloudinary
+        
+        # 3. Eliminar registros relacionados
+        # Peleas
+        delete_peleas = text("DELETE FROM peleas WHERE gallo_id = :gallo_id")
+        peleas_deleted = db.execute(delete_peleas, {"gallo_id": gallo_id})
+        print(f"🥊 Peleas eliminadas: {peleas_deleted.rowcount}")
+        
+        # Topes
+        delete_topes = text("DELETE FROM topes WHERE gallo_id = :gallo_id")
+        topes_deleted = db.execute(delete_topes, {"gallo_id": gallo_id})
+        print(f"🏃 Topes eliminados: {topes_deleted.rowcount}")
+        
+        # Vacunas
+        delete_vacunas = text("DELETE FROM vacunas WHERE gallo_id = :gallo_id")
+        vacunas_deleted = db.execute(delete_vacunas, {"gallo_id": gallo_id})
+        print(f"💉 Vacunas eliminadas: {vacunas_deleted.rowcount}")
+        
+        # 4. Si este gallo tiene genealogía, decidir qué hacer con la familia
+        familia_eliminada = 0
+        if gallo.id_gallo_genealogico:
+            # Opción 1: Eliminar solo este gallo (mantener familia)
+            # Opción 2: Eliminar toda la genealogía si es el principal
+            
+            # Verificar si es el gallo principal (id == id_gallo_genealogico)
+            if gallo.id == gallo.id_gallo_genealogico:
+                # Es el gallo principal, eliminar toda la genealogía
+                delete_familia = text("""
+                    DELETE FROM gallos 
+                    WHERE id_gallo_genealogico = :genealogy_id 
+                    AND user_id = :user_id
+                    AND id != :gallo_id
+                """)
+                familia_result = db.execute(delete_familia, {
+                    "genealogy_id": gallo.id_gallo_genealogico,
+                    "user_id": current_user_id,
+                    "gallo_id": gallo_id
+                })
+                familia_eliminada = familia_result.rowcount
+                print(f"👨‍👩‍👧‍👦 Familia genealógica eliminada: {familia_eliminada} gallos")
+            else:
+                # No es el principal, solo limpiar referencias
+                # Actualizar gallos que tienen este como padre/madre
+                update_hijos_padre = text("""
+                    UPDATE gallos 
+                    SET padre_id = NULL 
+                    WHERE padre_id = :gallo_id AND user_id = :user_id
+                """)
+                db.execute(update_hijos_padre, {"gallo_id": gallo_id, "user_id": current_user_id})
+                
+                update_hijos_madre = text("""
+                    UPDATE gallos 
+                    SET madre_id = NULL 
+                    WHERE madre_id = :gallo_id AND user_id = :user_id
+                """)
+                db.execute(update_hijos_madre, {"gallo_id": gallo_id, "user_id": current_user_id})
+        
+        # 5. Finalmente, eliminar el gallo principal
+        delete_gallo_query = text("DELETE FROM gallos WHERE id = :gallo_id AND user_id = :user_id")
+        gallo_deleted = db.execute(delete_gallo_query, {"gallo_id": gallo_id, "user_id": current_user_id})
+        
+        if gallo_deleted.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se pudo eliminar el gallo"
+            )
+        
+        # 6. Commit toda la transacción
+        db.commit()
+        
+        print(f"✅ Gallo {gallo.nombre} eliminado exitosamente")
+        
+        return {
+            "success": True,
+            "message": f"Gallo '{gallo.nombre}' eliminado exitosamente",
+            "data": {
+                "gallo_eliminado": {
+                    "id": gallo_id,
+                    "nombre": gallo.nombre,
+                    "codigo": gallo.codigo_identificacion
+                },
+                "recursos_eliminados": {
+                    "peleas": peleas_deleted.rowcount,
+                    "topes": topes_deleted.rowcount,
+                    "vacunas": vacunas_deleted.rowcount,
+                    "familia_genealogica": familia_eliminada
+                },
+                "fotos_cloudinary": "eliminadas" if gallo.codigo_identificacion else "no_aplicable"
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Error eliminando gallo {gallo_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error eliminando gallo: {str(e)}"
+        )
+
 # 🌳 OBTENER ÁRBOL GENEALÓGICO COMPLETO - ENDPOINT QUE FALTABA
 @router.get("/{gallo_id}/genealogia", response_model=dict)
 async def get_genealogia_completa(
