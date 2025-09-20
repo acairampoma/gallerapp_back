@@ -20,7 +20,7 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
-    print("⚠️ ReportLab no disponible - PDFs no se pueden generar")
+    print("WARNING: ReportLab no disponible - PDFs no se pueden generar")
 
 class PDFServiceReportLab:
     """🔥 Servicio épico para generar PDFs profesionales con ReportLab"""
@@ -435,4 +435,4 @@ try:
     pdf_service_reportlab = PDFServiceReportLab()
 except ImportError:
     pdf_service_reportlab = None
-    print("⚠️ PDFServiceReportLab no disponible - usando servicio alternativo")
+    print("WARNING: PDFServiceReportLab no disponible - usando servicio alternativo")

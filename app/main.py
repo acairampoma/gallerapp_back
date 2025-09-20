@@ -20,12 +20,12 @@ try:
     from app.api.v1.gallos_con_pedigri import router as gallos_pedigri_router
     from app.api.v1.fotos_final import router as fotos_router
     from app.api.v1.razas_simple import router as razas_router
-    print("🔥 ¡ENDPOINTS LIMPIOS CARGADOS EXITOSAMENTE!")
-    print("   - ✅ Gallos con pedigrí genealógico")
-    print("   - ✅ Fotos estructura simple")
-    print("   - ✅ Razas básicas")
+    print("ENDPOINTS LIMPIOS CARGADOS EXITOSAMENTE!")
+    print("   - Gallos con pedigri genealogico")
+    print("   - Fotos estructura simple")
+    print("   - Razas basicas")
 except ImportError as e:
-    print(f"❌ Error importando endpoints principales: {e}")
+    print(f"ERROR: Error importando endpoints principales: {e}")
     gallos_pedigri_router = None
     fotos_router = None
     razas_router = None
@@ -33,9 +33,9 @@ except ImportError as e:
 # Cargar vacunas
 try:
     from app.api.v1.vacunas import router as vacunas_router
-    print("   - ✅ Vacunas y control sanitario")
+    print("   - Vacunas y control sanitario")
 except ImportError as e:
-    print(f"⚠️ Vacunas no disponible: {e}")
+    print(f"WARNING: Vacunas no disponible: {e}")
     vacunas_router = None
 
 # 🥊 Cargar peleas
@@ -106,6 +106,14 @@ try:
 except ImportError as e:
     print(f"   - ❌ Error cargando FCM: {e}")
     fcm_router = None
+
+# 📺 Cargar módulo transmisiones
+try:
+    from app.api.v1.transmisiones import router as transmisiones_router
+    print("   - ✅ Sistema de transmisiones y coliseos")
+except ImportError as e:
+    print(f"⚠️ Sistema de transmisiones no disponible: {e}")
+    transmisiones_router = None
 
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
@@ -291,6 +299,14 @@ if fcm_router:
     )
     print("✅ Router FCM simple activado")
 
+if transmisiones_router:
+    app.include_router(
+        transmisiones_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de transmisiones activado")
+
 # 🔥 TEST NOTIFICATION ROUTER
 try:
     from app.api.v1.test_notification import router as test_notification_router
@@ -332,6 +348,7 @@ async def root():
             "vacunas": "/api/v1/vacunas" if vacunas_router else "NO DISPONIBLE",
             "genealogia": "/api/v1/gallos/con-pedigri" if gallos_pedigri_router else "NO DISPONIBLE",
             "reportes": "/api/v1/reportes" if reportes_router else "NO DISPONIBLE",
+            "transmisiones": "/api/v1/transmisiones" if transmisiones_router else "NO DISPONIBLE",
             "test_db": "/test-db",
             "test_cloudinary": "/test-cloudinary",
             "test_full": "/test-full"
