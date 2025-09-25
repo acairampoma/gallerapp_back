@@ -101,8 +101,8 @@ async def listar_publicaciones_publicas(
             p.telefono as vendedor_telefono,
             p.ubicacion as vendedor_ubicacion,
 
-            -- Datos de la raza (JOIN)
-            r.nombre as raza_nombre,
+            -- Datos de la raza (directo del gallo, sin JOIN)
+            g.raza_id as raza_nombre,
 
             -- ¿Es favorito del usuario actual?
             CASE WHEN mf.id IS NOT NULL THEN true ELSE false END as es_favorito,
@@ -114,7 +114,6 @@ async def listar_publicaciones_publicas(
         INNER JOIN gallos g ON mp.gallo_id = g.id
         INNER JOIN users u ON mp.user_id = u.id
         LEFT JOIN profiles p ON u.id = p.user_id
-        LEFT JOIN razas r ON g.raza_id = r.id
         LEFT JOIN marketplace_favoritos mf ON (mp.id = mf.publicacion_id AND mf.user_id = :current_user_id)
 
         WHERE 1=1
