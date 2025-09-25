@@ -115,6 +115,14 @@ except ImportError as e:
     print(f"⚠️ Sistema de transmisiones no disponible: {e}")
     transmisiones_router = None
 
+# 🛒 Cargar módulo marketplace
+try:
+    from app.api.v1.marketplace import router as marketplace_router
+    print("   - ✅ Sistema de marketplace para publicaciones de gallos")
+except ImportError as e:
+    print(f"⚠️ Sistema de marketplace no disponible: {e}")
+    marketplace_router = None
+
 # 🔄 FALLBACK: Endpoints antiguos (ELIMINADOS - YA NO EXISTEN)
 # Los archivos de fallback fueron eliminados en la limpieza
     
@@ -306,6 +314,14 @@ if transmisiones_router:
         # NO agregar tags aquí - ya están en el router
     )
     print("✅ Router de transmisiones activado")
+
+if marketplace_router:
+    app.include_router(
+        marketplace_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de marketplace activado")
 
 # 🔥 TEST NOTIFICATION ROUTER
 try:
