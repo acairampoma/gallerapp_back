@@ -109,7 +109,8 @@ class PlanCatalogoResponse(BaseModel):
     nombre: str
     precio: Decimal
     duracion_dias: int
-    
+    duracion_semanas: Optional[int] = Field(None, description="Semanas de acceso streaming")
+
     # Límites
     gallos_maximo: int
     topes_por_gallo: int
