@@ -301,6 +301,13 @@ async def listar_mis_publicaciones(
             mp.fecha_publicacion, mp.icono_ejemplo, mp.created_at, mp.updated_at,
             g.nombre as gallo_nombre,
             g.codigo_identificacion as gallo_codigo,
+            g.raza_id as gallo_raza_id,
+            g.peso as gallo_peso,
+            g.altura as gallo_altura,
+            g.color as gallo_color,
+            g.color_patas as gallo_color_patas,
+            g.color_plumaje as gallo_color_plumaje,
+            g.fecha_nacimiento as gallo_fecha_nacimiento,
             g.foto_principal_url as gallo_foto_principal,
             g.fotos_adicionales as gallo_fotos_json,
             (SELECT COUNT(*) FROM marketplace_favoritos mf WHERE mf.publicacion_id = mp.id) as total_favoritos
@@ -352,6 +359,13 @@ async def listar_mis_publicaciones(
                 "gallo_info": {
                     "nombre": row.gallo_nombre,
                     "codigo_identificacion": row.gallo_codigo,
+                    "raza_id": row.gallo_raza_id,
+                    "peso": float(row.gallo_peso) if row.gallo_peso else None,
+                    "altura": row.gallo_altura,
+                    "color": row.gallo_color,
+                    "color_patas": row.gallo_color_patas,
+                    "color_plumaje": row.gallo_color_plumaje,
+                    "fecha_nacimiento": row.gallo_fecha_nacimiento.isoformat() if row.gallo_fecha_nacimiento else None,
                     "foto_principal_url": row.gallo_foto_principal,
                     "fotos_adicionales": fotos_gallo,
                     "total_fotos": len(fotos_gallo)
@@ -664,6 +678,13 @@ async def listar_favoritos(
             mp.fecha_publicacion,
             g.nombre as gallo_nombre,
             g.codigo_identificacion as gallo_codigo,
+            g.raza_id as gallo_raza_id,
+            g.peso as gallo_peso,
+            g.altura as gallo_altura,
+            g.color as gallo_color,
+            g.color_patas as gallo_color_patas,
+            g.color_plumaje as gallo_color_plumaje,
+            g.fecha_nacimiento as gallo_fecha_nacimiento,
             g.foto_principal_url as gallo_foto
         FROM marketplace_favoritos mf
         INNER JOIN marketplace_publicaciones mp ON mf.publicacion_id = mp.id
@@ -704,6 +725,13 @@ async def listar_favoritos(
                     "gallo_info": {
                         "nombre": row.gallo_nombre,
                         "codigo_identificacion": row.gallo_codigo,
+                        "raza_id": row.gallo_raza_id,
+                        "peso": float(row.gallo_peso) if row.gallo_peso else None,
+                        "altura": row.gallo_altura,
+                        "color": row.gallo_color,
+                        "color_patas": row.gallo_color_patas,
+                        "color_plumaje": row.gallo_color_plumaje,
+                        "fecha_nacimiento": row.gallo_fecha_nacimiento.isoformat() if row.gallo_fecha_nacimiento else None,
                         "foto_principal_url": row.gallo_foto
                     }
                 }
