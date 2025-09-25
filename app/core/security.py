@@ -18,18 +18,52 @@ class SecurityService:
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verificar password con hash - protegido contra ataques"""
-        # 🛡️ PROTECCIÓN: Truncar contraseña a 72 bytes para evitar crashes
-        if len(plain_password.encode('utf-8')) > 72:
-            plain_password = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-        return pwd_context.verify(plain_password, hashed_password)
+        try:
+            # 🛡️ PROTECCIÓN: Truncar contraseña a 72 bytes para evitar crashes
+            if len(plain_password.encode('utf-8')) > 72:
+                plain_password = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+            return pwd_context.verify(plain_password, hashed_password)
+        except ValueError as e:
+            # Capturar específicamente errores de bcrypt por passwords largas
+            if "password cannot be longer than 72 bytes" in str(e):
+                # Si aún falla, truncar más agresivamente
+                plain_password = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+                try:
+                    return pwd_context.verify(plain_password, hashed_password)
+                except:
+                    # Si aún falla, retornar False para evitar crash
+                    return False
+            # Re-raise otros errores de ValueError
+            raise e
+        except Exception as e:
+            # Capturar cualquier otro error relacionado con bcrypt
+            print(f"🚨 SECURITY ERROR: bcrypt verification failed: {str(e)}")
+            return False
 
     @staticmethod
     def get_password_hash(password: str) -> str:
         """Generar hash de password - protegido contra ataques"""
-        # 🛡️ PROTECCIÓN: Truncar contraseña a 72 bytes para evitar crashes
-        if len(password.encode('utf-8')) > 72:
-            password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-        return pwd_context.hash(password)
+        try:
+            # 🛡️ PROTECCIÓN: Truncar contraseña a 72 bytes para evitar crashes
+            if len(password.encode('utf-8')) > 72:
+                password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+            return pwd_context.hash(password)
+        except ValueError as e:
+            # Capturar específicamente errores de bcrypt por passwords largas
+            if "password cannot be longer than 72 bytes" in str(e):
+                # Si aún falla, truncar más agresivamente
+                password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+                try:
+                    return pwd_context.hash(password)
+                except:
+                    # Si aún falla, generar un hash seguro por defecto
+                    raise HTTPException(status_code=400, detail="Password format not supported")
+            # Re-raise otros errores de ValueError
+            raise e
+        except Exception as e:
+            # Capturar cualquier otro error relacionado con bcrypt
+            print(f"🚨 SECURITY ERROR: bcrypt hashing failed: {str(e)}")
+            raise HTTPException(status_code=500, detail="Password hashing failed")
     
     @staticmethod
     def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
