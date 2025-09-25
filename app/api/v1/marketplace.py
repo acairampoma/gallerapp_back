@@ -99,7 +99,7 @@ async def listar_publicaciones_publicas(
             u.email as vendedor_email,
             COALESCE(p.nombre_completo, u.email) as vendedor_nombre,
             p.telefono as vendedor_telefono,
-            p.ubicacion as vendedor_ubicacion,
+            p.ciudad as vendedor_ubicacion,
 
             -- Datos de la raza (directo del gallo, sin JOIN)
             g.raza_id as raza_nombre,
