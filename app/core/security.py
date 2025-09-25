@@ -17,12 +17,18 @@ security = HTTPBearer()
 class SecurityService:
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verificar password con hash"""
+        """Verificar password con hash - protegido contra ataques"""
+        # 🛡️ PROTECCIÓN: Truncar contraseña a 72 bytes para evitar crashes
+        if len(plain_password.encode('utf-8')) > 72:
+            plain_password = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
         return pwd_context.verify(plain_password, hashed_password)
-    
+
     @staticmethod
     def get_password_hash(password: str) -> str:
-        """Generar hash de password"""
+        """Generar hash de password - protegido contra ataques"""
+        # 🛡️ PROTECCIÓN: Truncar contraseña a 72 bytes para evitar crashes
+        if len(password.encode('utf-8')) > 72:
+            password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
         return pwd_context.hash(password)
     
     @staticmethod
