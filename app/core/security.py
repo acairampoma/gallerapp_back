@@ -17,37 +17,13 @@ security = HTTPBearer()
 class SecurityService:
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verificar password con hash - protegido contra ataques"""
-        try:
-            return pwd_context.verify(plain_password, hashed_password)
-        except ValueError as e:
-            # Capturar específicamente errores de bcrypt por passwords largas
-            if "password cannot be longer than 72 bytes" in str(e):
-                print(f"🚨 SECURITY: Malicious long password detected, length: {len(plain_password.encode('utf-8'))}")
-                return False  # Deny access para passwords maliciosas
-            # Re-raise otros errores de ValueError
-            raise e
-        except Exception as e:
-            # Capturar cualquier otro error relacionado con bcrypt
-            print(f"🚨 SECURITY ERROR: bcrypt verification failed: {str(e)}")
-            return False
+        """Verificar password con hash"""
+        return pwd_context.verify(plain_password, hashed_password)
 
     @staticmethod
     def get_password_hash(password: str) -> str:
-        """Generar hash de password - protegido contra ataques"""
-        try:
-            return pwd_context.hash(password)
-        except ValueError as e:
-            # Capturar específicamente errores de bcrypt por passwords largas
-            if "password cannot be longer than 72 bytes" in str(e):
-                print(f"🚨 SECURITY: Malicious long password during hashing, length: {len(password.encode('utf-8'))}")
-                raise HTTPException(status_code=400, detail="Password too long - maximum 72 bytes")
-            # Re-raise otros errores de ValueError
-            raise e
-        except Exception as e:
-            # Capturar cualquier otro error relacionado con bcrypt
-            print(f"🚨 SECURITY ERROR: bcrypt hashing failed: {str(e)}")
-            raise HTTPException(status_code=500, detail="Password hashing failed")
+        """Generar hash de password"""
+        return pwd_context.hash(password)
     
     @staticmethod
     def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
