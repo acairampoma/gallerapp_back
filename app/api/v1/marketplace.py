@@ -89,6 +89,8 @@ async def listar_publicaciones_publicas(
             g.peso as gallo_peso,
             g.altura as gallo_altura,
             g.color as gallo_color,
+            g.color_patas as gallo_color_patas,
+            g.color_plumaje as gallo_color_plumaje,
             g.fecha_nacimiento as gallo_fecha_nacimiento,
             g.foto_principal_url as gallo_foto_principal,
             g.url_foto_cloudinary as gallo_foto_optimizada,
@@ -244,6 +246,8 @@ async def listar_publicaciones_publicas(
                     "peso": float(row.gallo_peso) if row.gallo_peso else None,
                     "altura": row.gallo_altura,
                     "color": row.gallo_color,
+                    "color_patas": row.gallo_color_patas,
+                    "color_plumaje": row.gallo_color_plumaje,
                     "fecha_nacimiento": row.gallo_fecha_nacimiento.isoformat() if row.gallo_fecha_nacimiento else None,
                     "fotos_adicionales": fotos_gallo,
                     "total_fotos": len(fotos_gallo)
