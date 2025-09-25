@@ -27,8 +27,9 @@ class RecursoTipo(str, Enum):
     """Tipos de recursos con límites"""
     GALLOS = "gallos"
     TOPES = "topes"
-    PELEAS = "peleas" 
+    PELEAS = "peleas"
     VACUNAS = "vacunas"
+    MARKETPLACE_PUBLICACIONES = "marketplace_publicaciones"
 
 # ========================================
 # SCHEMAS BASE
@@ -39,12 +40,13 @@ class SuscripcionBase(BaseModel):
     plan_type: str = Field(..., description="Tipo de plan")
     plan_name: str = Field(..., description="Nombre del plan")
     precio: Decimal = Field(..., ge=0, description="Precio del plan")
-    
+
     # Límites
     gallos_maximo: int = Field(..., ge=1, le=999, description="Máximo de gallos permitidos")
     topes_por_gallo: int = Field(..., ge=1, le=999, description="Topes por gallo")
     peleas_por_gallo: int = Field(..., ge=1, le=999, description="Peleas por gallo")
     vacunas_por_gallo: int = Field(..., ge=1, le=999, description="Vacunas por gallo")
+    marketplace_publicaciones_max: int = Field(..., ge=0, le=999, description="Máximo publicaciones marketplace")
 
 class SuscripcionCreate(SuscripcionBase):
     """Schema para crear suscripción"""
@@ -68,9 +70,10 @@ class SuscripcionUpdate(BaseModel):
     
     # Límites actualizables
     gallos_maximo: Optional[int] = Field(None, ge=1, le=999)
-    topes_por_gallo: Optional[int] = Field(None, ge=1, le=999) 
+    topes_por_gallo: Optional[int] = Field(None, ge=1, le=999)
     peleas_por_gallo: Optional[int] = Field(None, ge=1, le=999)
     vacunas_por_gallo: Optional[int] = Field(None, ge=1, le=999)
+    marketplace_publicaciones_max: Optional[int] = Field(None, ge=0, le=999)
 
 class SuscripcionResponse(SuscripcionBase):
     """Schema de respuesta para suscripción"""
@@ -112,6 +115,7 @@ class PlanCatalogoResponse(BaseModel):
     topes_por_gallo: int
     peleas_por_gallo: int
     vacunas_por_gallo: int
+    marketplace_publicaciones_max: int
     
     # Características
     soporte_premium: bool
@@ -163,6 +167,7 @@ class EstadoLimites(BaseModel):
     
     # Límites por recurso
     gallos: LimiteRecurso
+    marketplace_publicaciones: Optional[LimiteRecurso] = None
     topes: Optional[Dict[int, LimiteRecurso]] = None  # Por gallo_id
     peleas: Optional[Dict[int, LimiteRecurso]] = None  # Por gallo_id
     vacunas: Optional[Dict[int, LimiteRecurso]] = None  # Por gallo_id

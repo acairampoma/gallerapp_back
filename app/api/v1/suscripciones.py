@@ -358,6 +358,7 @@ async def activar_plan_usuario(
         suscripcion.topes_por_gallo = plan.topes_por_gallo
         suscripcion.peleas_por_gallo = plan.peleas_por_gallo
         suscripcion.vacunas_por_gallo = plan.vacunas_por_gallo
+        # marketplace_publicaciones_max se obtiene via JOIN con planes_catalogo
         suscripcion.updated_at = datetime.utcnow()
         
         # Actualizar estado premium del usuario si es necesario
@@ -479,7 +480,7 @@ async def _crear_suscripcion_gratuita(user_id: int, db: Session):
             gallos_maximo=plan_gratuito.gallos_maximo,
             topes_por_gallo=plan_gratuito.topes_por_gallo,
             peleas_por_gallo=plan_gratuito.peleas_por_gallo,
-            vacunas_por_gallo=plan_gratuito.vacunas_por_gallo
+            vacunas_por_gallo=plan_gratuito.vacunas_por_gallo,
         )
         
         db.add(nueva_suscripcion)

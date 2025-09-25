@@ -11,9 +11,11 @@ from app.models.tope import Tope
 from app.models.pelea import Pelea
 from app.models.vacuna import Vacuna
 from app.models.inversion import Inversion
+from app.models.marketplace import MarketplacePublicacion, MarketplaceFavorito
 
 __all__ = [
-    "User", "Profile", "Raza", "Gallo", 
+    "User", "Profile", "Raza", "Gallo",
     "Suscripcion", "PlanCatalogo", "PagoPendiente", "NotificacionAdmin",
-    "Tope", "Pelea", "Vacuna", "Inversion"
+    "Tope", "Pelea", "Vacuna", "Inversion",
+    "MarketplacePublicacion", "MarketplaceFavorito"
 ]

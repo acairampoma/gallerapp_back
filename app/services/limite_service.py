@@ -7,10 +7,11 @@ import logging
 
 from app.models.user import User
 from app.models.gallo_simple import Gallo
-from app.models.tope import Tope  
+from app.models.tope import Tope
 from app.models.pelea import Pelea
 from app.models.vacuna import Vacuna
-from app.models.suscripcion import Suscripcion  # Movido aquí desde línea 31
+from app.models.marketplace import MarketplacePublicacion
+from app.models.suscripcion import Suscripcion
 from app.schemas.suscripcion import EstadoLimites, LimiteRecurso, ValidacionLimite, RecursoTipo
 from app.database import get_db
 
@@ -40,20 +41,26 @@ class LimiteService:
     # ========================================
     
     def obtener_suscripcion_activa(self, user_id: int) -> Optional[Dict]:
-        """Obtiene la suscripción activa del usuario"""
+        """Obtiene la suscripción activa del usuario con JOIN a planes_catalogo"""
         try:
-            
-            suscripcion = self.db.query(Suscripcion).filter(
+            from app.models.plan_catalogo import PlanCatalogo
+
+            # JOIN entre suscripcion y plan_catalogo para obtener límites actualizados
+            resultado = self.db.query(Suscripcion, PlanCatalogo).join(
+                PlanCatalogo, Suscripcion.plan_type == PlanCatalogo.codigo
+            ).filter(
                 and_(
                     Suscripcion.user_id == user_id,
                     Suscripcion.status == 'active'
                 )
             ).first()
-            
-            if not suscripcion:
+
+            if not resultado:
                 logger.warning(f"Usuario {user_id} no tiene suscripción activa")
                 return None
-                
+
+            suscripcion, plan = resultado
+
             return {
                 'id': suscripcion.id,
                 'plan_type': suscripcion.plan_type,
@@ -62,6 +69,7 @@ class LimiteService:
                 'topes_por_gallo': suscripcion.topes_por_gallo,
                 'peleas_por_gallo': suscripcion.peleas_por_gallo,
                 'vacunas_por_gallo': suscripcion.vacunas_por_gallo,
+                'marketplace_publicaciones_max': plan.marketplace_publicaciones_max,  # ← DESDE PLANES_CATALOGO
                 'fecha_fin': suscripcion.fecha_fin
             }
             
@@ -131,13 +139,30 @@ class LimiteService:
                 query = self.db.query(func.count(Vacuna.id)).join(
                     Gallo, Vacuna.gallo_id == Gallo.id
                 ).filter(Gallo.user_id == user_id)
-            
+
             count = query.scalar() or 0
             logger.debug(f"Usuario {user_id}, gallo {gallo_id}: {count} vacunas")
             return count
-            
+
         except Exception as e:
             logger.error(f"Error contando vacunas para user {user_id}, gallo {gallo_id}: {e}")
+            return 0
+
+    def contar_publicaciones_marketplace(self, user_id: int) -> int:
+        """Cuenta las publicaciones activas del usuario en marketplace"""
+        try:
+            count = self.db.query(func.count(MarketplacePublicacion.id)).filter(
+                and_(
+                    MarketplacePublicacion.user_id == user_id,
+                    MarketplacePublicacion.estado.in_(['venta', 'pausado'])  # Solo contar activas
+                )
+            ).scalar() or 0
+
+            logger.debug(f"Usuario {user_id} tiene {count} publicaciones marketplace activas")
+            return count
+
+        except Exception as e:
+            logger.error(f"Error contando publicaciones marketplace para user {user_id}: {e}")
             return 0
     
     # ========================================
@@ -156,12 +181,12 @@ class LimiteService:
                 mensaje_error="Sin suscripción activa",
                 upgrade_disponible=True
             )
-        
+
         gallos_actuales = self.contar_gallos(user_id)
         limite = suscripcion['gallos_maximo']
-        
+
         puede_crear = gallos_actuales < limite
-        
+
         return ValidacionLimite(
             puede_crear=puede_crear,
             recurso_tipo=RecursoTipo.GALLOS,
@@ -169,6 +194,45 @@ class LimiteService:
             cantidad_usada=gallos_actuales,
             mensaje_error=None if puede_crear else f"Límite de gallos alcanzado ({gallos_actuales}/{limite})",
             plan_recomendado="premium" if suscripcion['plan_type'] == 'gratuito' else "profesional"
+        )
+
+    def validar_limite_marketplace(self, user_id: int) -> ValidacionLimite:
+        """Valida si el usuario puede crear más publicaciones en marketplace"""
+        suscripcion = self.obtener_suscripcion_activa(user_id)
+        if not suscripcion:
+            return ValidacionLimite(
+                puede_crear=False,
+                recurso_tipo=RecursoTipo.MARKETPLACE_PUBLICACIONES,
+                limite_actual=0,
+                cantidad_usada=0,
+                mensaje_error="Sin suscripción activa",
+                upgrade_disponible=True
+            )
+
+        publicaciones_actuales = self.contar_publicaciones_marketplace(user_id)
+        limite = suscripcion['marketplace_publicaciones_max']
+
+        # Plan gratuito no puede publicar
+        if limite == 0:
+            return ValidacionLimite(
+                puede_crear=False,
+                recurso_tipo=RecursoTipo.MARKETPLACE_PUBLICACIONES,
+                limite_actual=limite,
+                cantidad_usada=publicaciones_actuales,
+                mensaje_error="El plan gratuito no permite publicaciones en marketplace",
+                plan_recomendado="basico",
+                upgrade_disponible=True
+            )
+
+        puede_crear = publicaciones_actuales < limite
+
+        return ValidacionLimite(
+            puede_crear=puede_crear,
+            recurso_tipo=RecursoTipo.MARKETPLACE_PUBLICACIONES,
+            limite_actual=limite,
+            cantidad_usada=publicaciones_actuales,
+            mensaje_error=None if puede_crear else f"Límite de publicaciones marketplace alcanzado ({publicaciones_actuales}/{limite})",
+            plan_recomendado="premium" if suscripcion['plan_type'] in ['gratuito', 'basico'] else "profesional"
         )
     
     def validar_limite_por_gallo(self, user_id: int, gallo_id: int, recurso_tipo: RecursoTipo) -> ValidacionLimite:
@@ -246,6 +310,7 @@ class LimiteService:
                 suscripcion_activa=False,
                 fecha_vencimiento=None,
                 gallos=crear_limite_recurso_completo(RecursoTipo.GALLOS, 0, 0),
+                marketplace_publicaciones=crear_limite_recurso_completo(RecursoTipo.MARKETPLACE_PUBLICACIONES, 0, 0),
                 tiene_limites_superados=True,
                 recursos_en_limite=["sin_suscripcion"]
             )
@@ -256,6 +321,14 @@ class LimiteService:
             RecursoTipo.GALLOS,
             suscripcion['gallos_maximo'],
             gallos_count
+        )
+
+        # Contador de publicaciones marketplace
+        marketplace_count = self.contar_publicaciones_marketplace(user_id)
+        marketplace_limite = crear_limite_recurso_completo(
+            RecursoTipo.MARKETPLACE_PUBLICACIONES,
+            suscripcion['marketplace_publicaciones_max'],
+            marketplace_count
         )
         
         # Obtener gallos del usuario para límites individuales
@@ -300,13 +373,18 @@ class LimiteService:
         # Verificar límite general de gallos
         if gallos_count >= suscripcion['gallos_maximo']:
             recursos_en_limite.append("gallos")
-        
+
+        # Verificar límite de marketplace
+        if marketplace_count >= suscripcion['marketplace_publicaciones_max']:
+            recursos_en_limite.append("marketplace_publicaciones")
+
         return EstadoLimites(
             user_id=user_id,
             plan_actual=suscripcion['plan_type'],
             suscripcion_activa=True,
             fecha_vencimiento=suscripcion['fecha_fin'],
             gallos=gallos_limite,
+            marketplace_publicaciones=marketplace_limite,
             topes=topes_por_gallo if topes_por_gallo else None,
             peleas=peleas_por_gallo if peleas_por_gallo else None,
             vacunas=vacunas_por_gallo if vacunas_por_gallo else None,
@@ -346,16 +424,18 @@ class LimiteService:
 # ========================================
 
 def validar_limite_recurso(
-    db: Session, 
-    user_id: int, 
-    recurso_tipo: RecursoTipo, 
+    db: Session,
+    user_id: int,
+    recurso_tipo: RecursoTipo,
     gallo_id: Optional[int] = None
 ) -> ValidacionLimite:
     """Helper function para validar límites en endpoints"""
     service = LimiteService(db)
-    
+
     if recurso_tipo == RecursoTipo.GALLOS:
         return service.validar_limite_gallos(user_id)
+    elif recurso_tipo == RecursoTipo.MARKETPLACE_PUBLICACIONES:
+        return service.validar_limite_marketplace(user_id)
     else:
         if not gallo_id:
             raise ValueError("gallo_id es requerido para este tipo de recurso")

@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime, date
 from decimal import Decimal
 import os
+import json
 
 from app.database import get_db
 from app.core.security import get_current_user_id
@@ -1091,6 +1092,241 @@ async def update_gallo_con_expansion(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error actualizando pedigri: {str(e)}"
+        )
+
+# 📸🔄 ACTUALIZAR FOTOS MÚLTIPLES DE GALLO
+@router.post("/{gallo_id}/fotos-multiples", response_model=dict)
+async def actualizar_fotos_multiples_gallo(
+    gallo_id: int,
+    foto_1: Optional[UploadFile] = File(None, description="Foto 1 del gallo"),
+    foto_2: Optional[UploadFile] = File(None, description="Foto 2 del gallo"),
+    foto_3: Optional[UploadFile] = File(None, description="Foto 3 del gallo"),
+    foto_4: Optional[UploadFile] = File(None, description="Foto 4 del gallo"),
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    📸 ACTUALIZAR HASTA 4 FOTOS DE UN GALLO EXISTENTE
+
+    Permite subir hasta 4 fotos que se almacenan en el campo JSON fotos_adicionales:
+    - Primera foto subida se marca como principal
+    - Resto se marcan con orden secuencial
+    - Se genera URL optimizada para cada foto
+    - Mantiene compatibilidad con foto_principal_url
+    """
+    try:
+        # 1. Verificar que el gallo existe y pertenece al usuario
+        gallo_query = text("""
+            SELECT id, nombre, codigo_identificacion, fotos_adicionales
+            FROM gallos
+            WHERE id = :gallo_id AND user_id = :user_id
+        """)
+
+        gallo_result = db.execute(gallo_query, {
+            "gallo_id": gallo_id,
+            "user_id": current_user_id
+        }).first()
+
+        if not gallo_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Gallo con ID {gallo_id} no encontrado o no tienes permisos"
+            )
+
+        print(f"🔍 Gallo encontrado: {gallo_result.nombre} ({gallo_result.codigo_identificacion})")
+
+        # 2. Subir fotos a Cloudinary y construir array JSON
+        fotos_json = []
+        fotos_subidas = 0
+        foto_principal_url = None
+
+        fotos = [foto_1, foto_2, foto_3, foto_4]
+
+        for i, foto in enumerate(fotos):
+            if foto and foto.filename and foto.size > 0:
+                try:
+                    print(f"📸 Subiendo foto {i+1}: {foto.filename}")
+
+                    # Subir a Cloudinary
+                    cloudinary_result = await CloudinaryService.upload_gallo_photo(
+                        file=foto,
+                        gallo_codigo=gallo_result.codigo_identificacion,
+                        photo_type=f"foto_{i+1}",
+                        user_id=current_user_id
+                    )
+
+                    foto_url = cloudinary_result['secure_url']
+                    foto_optimizada = cloudinary_result.get('urls', {}).get('optimized', foto_url)
+
+                    # Construir objeto de foto para JSON
+                    foto_obj = {
+                        "url": foto_url,
+                        "url_optimized": foto_optimizada,
+                        "orden": i + 1,
+                        "es_principal": i == 0,  # Primera foto es principal
+                        "descripcion": f"Foto {i+1}",
+                        "cloudinary_public_id": cloudinary_result.get('public_id'),
+                        "uploaded_at": datetime.now().isoformat(),
+                        "file_size": foto.size,
+                        "filename_original": foto.filename
+                    }
+
+                    fotos_json.append(foto_obj)
+                    fotos_subidas += 1
+
+                    # Guardar URL de la primera foto como principal
+                    if i == 0:
+                        foto_principal_url = foto_url
+
+                    print(f"✅ Foto {i+1} subida exitosamente: {foto_optimizada}")
+
+                except Exception as foto_error:
+                    print(f"❌ Error subiendo foto {i+1}: {foto_error}")
+                    # Continuar con las demás fotos
+                    continue
+
+        if fotos_subidas == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se pudo subir ninguna foto. Verifica que los archivos sean válidos."
+            )
+
+        # 3. Actualizar gallo con las fotos en formato JSON
+        update_fotos = text("""
+            UPDATE gallos
+            SET fotos_adicionales = :fotos_json,
+                foto_principal_url = :foto_principal,
+                url_foto_cloudinary = :foto_optimizada,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id AND user_id = :user_id
+        """)
+
+        foto_optimizada = fotos_json[0]["url_optimized"] if fotos_json else None
+
+        db.execute(update_fotos, {
+            "fotos_json": json.dumps(fotos_json),
+            "foto_principal": foto_principal_url,
+            "foto_optimizada": foto_optimizada,
+            "id": gallo_id,
+            "user_id": current_user_id
+        })
+        db.commit()
+
+        print(f"✅ {fotos_subidas} fotos actualizadas en BD para gallo {gallo_result.nombre}")
+
+        # 4. Retornar respuesta exitosa
+        return {
+            "success": True,
+            "message": f"Se actualizaron {fotos_subidas} fotos exitosamente",
+            "data": {
+                "gallo_id": gallo_id,
+                "gallo_nombre": gallo_result.nombre,
+                "fotos_subidas": fotos_subidas,
+                "foto_principal_url": foto_principal_url,
+                "fotos_detalle": fotos_json,
+                "total_fotos_almacenadas": len(fotos_json)
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"💥 Error actualizando fotos múltiples: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error actualizando fotos: {str(e)}"
+        )
+
+# 📸📋 OBTENER FOTOS DE UN GALLO
+@router.get("/{gallo_id}/fotos", response_model=dict)
+async def obtener_fotos_gallo(
+    gallo_id: int,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    📸 OBTENER TODAS LAS FOTOS DE UN GALLO
+
+    Retorna:
+    - Lista de fotos desde fotos_adicionales JSON
+    - Foto principal (compatibilidad)
+    - Metadatos de cada foto
+    - URLs optimizadas
+    """
+    try:
+        # Obtener gallo con sus fotos
+        gallo_query = text("""
+            SELECT
+                id, nombre, codigo_identificacion,
+                foto_principal_url, url_foto_cloudinary, fotos_adicionales
+            FROM gallos
+            WHERE id = :gallo_id AND user_id = :user_id
+        """)
+
+        gallo_result = db.execute(gallo_query, {
+            "gallo_id": gallo_id,
+            "user_id": current_user_id
+        }).first()
+
+        if not gallo_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Gallo con ID {gallo_id} no encontrado o no tienes permisos"
+            )
+
+        # Procesar fotos desde JSON
+        fotos_json = []
+        if gallo_result.fotos_adicionales:
+            try:
+                fotos_parsed = json.loads(gallo_result.fotos_adicionales) if isinstance(gallo_result.fotos_adicionales, str) else gallo_result.fotos_adicionales
+                if isinstance(fotos_parsed, list):
+                    fotos_json = fotos_parsed
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"⚠️ Error parseando fotos_adicionales JSON: {e}")
+
+        # Si no hay fotos en JSON pero existe foto_principal_url, crear entrada
+        if not fotos_json and gallo_result.foto_principal_url:
+            fotos_json = [{
+                "url": gallo_result.foto_principal_url,
+                "url_optimized": gallo_result.url_foto_cloudinary or gallo_result.foto_principal_url,
+                "orden": 1,
+                "es_principal": True,
+                "descripcion": "Foto principal",
+                "cloudinary_public_id": None,
+                "uploaded_at": None,
+                "file_size": None,
+                "filename_original": None,
+                "source": "legacy"  # Indica que viene de foto_principal_url
+            }]
+
+        # Estadísticas
+        total_fotos = len(fotos_json)
+        foto_principal = next((f for f in fotos_json if f.get("es_principal", False)), None)
+
+        return {
+            "success": True,
+            "data": {
+                "gallo_id": gallo_id,
+                "gallo_nombre": gallo_result.nombre,
+                "gallo_codigo": gallo_result.codigo_identificacion,
+                "total_fotos": total_fotos,
+                "foto_principal": foto_principal,
+                "fotos_detalle": fotos_json,
+                "urls_compatibilidad": {
+                    "foto_principal_url": gallo_result.foto_principal_url,
+                    "url_foto_cloudinary": gallo_result.url_foto_cloudinary
+                }
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"💥 Error obteniendo fotos: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo fotos: {str(e)}"
         )
 
 # 📄🐓 EXPORTAR FICHA PDF DE GALLO

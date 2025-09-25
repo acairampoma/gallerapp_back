@@ -27,9 +27,10 @@ class Suscripcion(Base):
     
     # Límites del plan (copiados del plan_catalogo al activarse)
     gallos_maximo = Column(Integer, nullable=False, default=5)
-    topes_por_gallo = Column(Integer, nullable=False, default=2) 
+    topes_por_gallo = Column(Integer, nullable=False, default=2)
     peleas_por_gallo = Column(Integer, nullable=False, default=2)
     vacunas_por_gallo = Column(Integer, nullable=False, default=2)
+    # marketplace_publicaciones_max se obtiene via JOIN con planes_catalogo
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

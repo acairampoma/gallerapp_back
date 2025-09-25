@@ -20,6 +20,10 @@ class PlanCatalogo(Base):
     topes_por_gallo = Column(Integer, nullable=False)
     peleas_por_gallo = Column(Integer, nullable=False)
     vacunas_por_gallo = Column(Integer, nullable=False)
+
+    # Campos adicionales
+    duracion_semanas = Column(Integer, nullable=True)  # Semanas de acceso a streaming
+    marketplace_publicaciones_max = Column(Integer, default=0)  # Límite marketplace
     
     # Características premium
     soporte_premium = Column(Boolean, default=False)
@@ -57,11 +61,13 @@ class PlanCatalogo(Base):
             'nombre': self.nombre,
             'precio': float(self.precio),
             'duracion_dias': self.duracion_dias,
+            'duracion_semanas': self.duracion_semanas,  # Streaming access
             'limites': {
                 'gallos_maximo': self.gallos_maximo,
                 'topes_por_gallo': self.topes_por_gallo,
                 'peleas_por_gallo': self.peleas_por_gallo,
                 'vacunas_por_gallo': self.vacunas_por_gallo,
+                'marketplace_publicaciones_max': self.marketplace_publicaciones_max,
             },
             'caracteristicas': {
                 'soporte_premium': self.soporte_premium,
