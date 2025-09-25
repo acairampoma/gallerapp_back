@@ -821,7 +821,7 @@ async def verificar_limites_marketplace(user_id: int, db: Session) -> Dict[str, 
             pc.nombre as plan_nombre,
             pc.marketplace_publicaciones_max as limite_publicaciones
         FROM suscripciones s
-        INNER JOIN planes_catalogo pc ON s.plan_id = pc.id
+        INNER JOIN planes_catalogo pc ON s.plan_type = pc.codigo
         WHERE s.user_id = :user_id AND s.status = 'active'
         ORDER BY s.created_at DESC
         LIMIT 1
