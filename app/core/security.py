@@ -19,17 +19,11 @@ class SecurityService:
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verificar password con hash - protegido contra ataques"""
         try:
-            # 🛡️ PROTECCIÓN: SOLO truncar si es realmente muy larga (>70 bytes)
-            password_bytes = len(plain_password.encode('utf-8'))
-            if password_bytes > 70:  # Solo truncar passwords anormalmente largas
-                plain_password = plain_password.encode('utf-8')[:70].decode('utf-8', errors='ignore')
-                print(f"🚨 SECURITY: Password truncated from {password_bytes} to 70 bytes")
-
             return pwd_context.verify(plain_password, hashed_password)
         except ValueError as e:
             # Capturar específicamente errores de bcrypt por passwords largas
             if "password cannot be longer than 72 bytes" in str(e):
-                print(f"🚨 SECURITY: bcrypt ValueError caught, password length: {len(plain_password.encode('utf-8'))}")
+                print(f"🚨 SECURITY: Malicious long password detected, length: {len(plain_password.encode('utf-8'))}")
                 return False  # Deny access para passwords maliciosas
             # Re-raise otros errores de ValueError
             raise e
@@ -42,18 +36,12 @@ class SecurityService:
     def get_password_hash(password: str) -> str:
         """Generar hash de password - protegido contra ataques"""
         try:
-            # 🛡️ PROTECCIÓN: SOLO truncar si es realmente muy larga (>70 bytes)
-            password_bytes = len(password.encode('utf-8'))
-            if password_bytes > 70:  # Solo truncar passwords anormalmente largas
-                password = password.encode('utf-8')[:70].decode('utf-8', errors='ignore')
-                print(f"🚨 SECURITY: Password truncated from {password_bytes} to 70 bytes during hashing")
-
             return pwd_context.hash(password)
         except ValueError as e:
             # Capturar específicamente errores de bcrypt por passwords largas
             if "password cannot be longer than 72 bytes" in str(e):
-                print(f"🚨 SECURITY: bcrypt ValueError during hashing, password length: {len(password.encode('utf-8'))}")
-                raise HTTPException(status_code=400, detail="Password too long")
+                print(f"🚨 SECURITY: Malicious long password during hashing, length: {len(password.encode('utf-8'))}")
+                raise HTTPException(status_code=400, detail="Password too long - maximum 72 bytes")
             # Re-raise otros errores de ValueError
             raise e
         except Exception as e:
