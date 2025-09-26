@@ -234,9 +234,12 @@ async def create_gallo_con_pedigri(
     propietario_actual: Optional[str] = Form(None),
     observaciones: Optional[str] = Form(None),
     
-    # 📸 FOTO PRINCIPAL (OPCIONAL)
+    # 📸 FOTOS (HASTA 4 FOTOS)
     foto_principal: Optional[UploadFile] = File(None, description="Foto principal del gallo"),
-    
+    foto_2: Optional[UploadFile] = File(None, description="Foto 2 del gallo"),
+    foto_3: Optional[UploadFile] = File(None, description="Foto 3 del gallo"),
+    foto_4: Optional[UploadFile] = File(None, description="Foto 4 del gallo"),
+
     # DATOS DEL PADRE (OPCIONAL)
     crear_padre: bool = Form(False),
     padre_nombre: Optional[str] = Form(None),
@@ -573,7 +576,85 @@ async def create_gallo_con_pedigri(
         except Exception as foto_error:
             print(f"❌ Error subiendo foto automática: {foto_error}")
             # No fallar el endpoint por error de foto
-        
+
+        # 📸🔥 PROCESAR FOTOS ADICIONALES (FOTO_2, FOTO_3, FOTO_4)
+        fotos_json = []
+        fotos_adicionales_subidas = 0
+
+        try:
+            fotos_params = [
+                ("foto_2", foto_2),
+                ("foto_3", foto_3),
+                ("foto_4", foto_4)
+            ]
+
+            # Si hay foto principal, agregarla como primera en el JSON
+            if foto_url:
+                foto_principal_obj = {
+                    "url": foto_url,
+                    "url_optimized": cloudinary_url,
+                    "orden": 1,
+                    "es_principal": True,
+                    "descripcion": "Foto Principal",
+                    "uploaded_at": datetime.now().isoformat(),
+                    "source": "api_creation"
+                }
+                fotos_json.append(foto_principal_obj)
+
+            # Procesar fotos 2, 3 y 4
+            for i, (param_name, foto_file) in enumerate(fotos_params):
+                if foto_file and foto_file.filename and foto_file.size > 0:
+                    try:
+                        print(f"📸 Subiendo {param_name} para gallo {gallo_principal_id}")
+
+                        cloudinary_result = await CloudinaryService.upload_gallo_photo(
+                            file=foto_file,
+                            gallo_codigo=codigo_final,
+                            photo_type=f"foto_{i+2}",
+                            user_id=current_user_id
+                        )
+
+                        foto_adicional_url = cloudinary_result['secure_url']
+                        foto_adicional_optimizada = cloudinary_result.get('urls', {}).get('optimized', foto_adicional_url)
+
+                        foto_obj = {
+                            "url": foto_adicional_url,
+                            "url_optimized": foto_adicional_optimizada,
+                            "orden": i + 2,
+                            "es_principal": False,
+                            "descripcion": f"Foto {i + 2}",
+                            "cloudinary_public_id": cloudinary_result.get('public_id'),
+                            "uploaded_at": datetime.now().isoformat(),
+                            "file_size": foto_file.size,
+                            "filename_original": foto_file.filename
+                        }
+
+                        fotos_json.append(foto_obj)
+                        fotos_adicionales_subidas += 1
+                        print(f"✅ {param_name} subida exitosamente")
+
+                    except Exception as foto_adicional_error:
+                        print(f"❌ Error subiendo {param_name}: {foto_adicional_error}")
+                        continue
+
+            # Actualizar gallo con fotos adicionales en formato JSON si hay fotos
+            if len(fotos_json) > 1:  # Más de solo la principal
+                update_fotos_adicionales = text("""
+                    UPDATE gallos
+                    SET fotos_adicionales = :fotos_json
+                    WHERE id = :id
+                """)
+                db.execute(update_fotos_adicionales, {
+                    "fotos_json": json.dumps(fotos_json),
+                    "id": gallo_principal_id
+                })
+                db.commit()
+                print(f"✅ {len(fotos_json)} fotos guardadas en fotos_adicionales JSON")
+
+        except Exception as fotos_error:
+            print(f"❌ Error procesando fotos adicionales: {fotos_error}")
+            # No fallar el endpoint por error de fotos adicionales
+
         return {
             "success": True,
             "message": f"🔥 TÉCNICA ÉPICA COMPLETA - {len(registros_creados)} REGISTROS VINCULADOS",
@@ -588,7 +669,9 @@ async def create_gallo_con_pedigri(
                     "id_gallo_genealogico": id_gallo_genealogico,  # 🔥 ES SU PROPIO ID
                     "foto_principal_url": foto_url,
                     "url_foto_cloudinary": cloudinary_url,
-                    "foto_subida_automaticamente": foto_url is not None
+                    "foto_subida_automaticamente": foto_url is not None,
+                    "fotos_adicionales_subidas": fotos_adicionales_subidas,
+                    "total_fotos_guardadas": len(fotos_json)
                 },
                 "registros_creados": registros_creados,
                 "total_registros": len(registros_creados),
