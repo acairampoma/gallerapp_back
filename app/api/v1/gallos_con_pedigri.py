@@ -596,6 +596,7 @@ async def create_gallo_con_pedigri(
                     "orden": 1,
                     "es_principal": True,
                     "descripcion": "Foto Principal",
+                    "cloudinary_public_id": cloudinary_result.get('public_id'),  # 🔥 FIX: Agregar public_id
                     "uploaded_at": datetime.now().isoformat(),
                     "source": "api_creation"
                 }
@@ -1370,13 +1371,32 @@ async def obtener_fotos_gallo(
 
         # Si no hay fotos en JSON pero existe foto_principal_url, crear entrada
         if not fotos_json and gallo_result.foto_principal_url:
+            # 🔥 FIX: Extraer public_id de la URL de Cloudinary para fotos legacy
+            cloudinary_public_id = None
+            try:
+                url = gallo_result.foto_principal_url
+                if 'cloudinary.com' in url:
+                    # Extraer public_id de URL tipo: https://res.cloudinary.com/cloud/image/upload/v1234567890/folder/public_id.jpg
+                    url_parts = url.split('/')
+                    if len(url_parts) >= 3:
+                        # Obtener la parte después de /upload/ y quitar extensión
+                        upload_index = url_parts.index('upload') if 'upload' in url_parts else -1
+                        if upload_index != -1 and upload_index < len(url_parts) - 1:
+                            # Todo después de /upload/vXXXXX/ es el public_id
+                            public_id_parts = url_parts[upload_index + 2:]  # Saltar /upload/v123456/
+                            public_id_with_ext = '/'.join(public_id_parts)
+                            cloudinary_public_id = public_id_with_ext.rsplit('.', 1)[0] if '.' in public_id_with_ext else public_id_with_ext
+                            print(f"✅ Public ID extraído de URL legacy: {cloudinary_public_id}")
+            except Exception as e:
+                print(f"⚠️ No se pudo extraer public_id de URL: {e}")
+
             fotos_json = [{
                 "url": gallo_result.foto_principal_url,
                 "url_optimized": gallo_result.url_foto_cloudinary or gallo_result.foto_principal_url,
                 "orden": 1,
                 "es_principal": True,
                 "descripcion": "Foto principal",
-                "cloudinary_public_id": None,
+                "cloudinary_public_id": cloudinary_public_id,  # 🔥 FIX: Ahora incluye el public_id extraído
                 "uploaded_at": None,
                 "file_size": None,
                 "filename_original": None,
@@ -2270,17 +2290,32 @@ async def delete_gallo_foto(
             print(f"✅ Foto eliminada de Cloudinary exitosamente")
 
         # 3. Actualizar fotos_adicionales JSON
-        fotos_adicionales_json = gallo.fotos_adicionales if gallo.fotos_adicionales else "[]"
-        try:
-            fotos_adicionales = json.loads(fotos_adicionales_json)
-        except:
+        print(f"📊 Fotos actuales en BD: {type(gallo.fotos_adicionales)} - {gallo.fotos_adicionales}")
+
+        # Handle both string JSON and already parsed data
+        if isinstance(gallo.fotos_adicionales, str):
+            try:
+                fotos_adicionales = json.loads(gallo.fotos_adicionales)
+            except:
+                fotos_adicionales = []
+        elif isinstance(gallo.fotos_adicionales, list):
+            fotos_adicionales = gallo.fotos_adicionales
+        else:
             fotos_adicionales = []
 
+        print(f"📊 Fotos parseadas: {len(fotos_adicionales)} fotos")
+        for i, foto in enumerate(fotos_adicionales):
+            print(f"   Foto {i+1}: public_id = {foto.get('cloudinary_public_id')}")
+
         # Filtrar la foto eliminada
+        fotos_antes = len(fotos_adicionales)
         fotos_adicionales = [
             foto for foto in fotos_adicionales
             if foto.get('cloudinary_public_id') != decoded_public_id
         ]
+        fotos_despues = len(fotos_adicionales)
+
+        print(f"📊 Filtrado: {fotos_antes} -> {fotos_despues} fotos (eliminada: {decoded_public_id})")
 
         # 4. Actualizar en la base de datos
         update_query = text("""
