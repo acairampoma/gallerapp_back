@@ -2218,3 +2218,99 @@ async def get_genealogia_completa(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error obteniendo genealogía: {str(e)}"
         )
+
+# 🗑️ ELIMINAR FOTO ESPECÍFICA DE UN GALLO
+@router.delete("/{gallo_id}/fotos/{public_id:path}")
+async def delete_gallo_foto(
+    gallo_id: int,
+    public_id: str,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    🗑️ ELIMINAR UNA FOTO ESPECÍFICA DE UN GALLO
+
+    - Verifica que el gallo pertenece al usuario
+    - Elimina la foto de Cloudinary
+    - Actualiza el campo fotos_adicionales (JSON)
+    - Mantiene consistencia en la base de datos
+    """
+    try:
+        # Decode URL-encoded public_id
+        import urllib.parse
+        decoded_public_id = urllib.parse.unquote(public_id)
+        print(f"🗑️ Iniciando eliminación de foto: gallo_id={gallo_id}")
+        print(f"📝 Public ID original: {public_id}")
+        print(f"📝 Public ID decodificado: {decoded_public_id}")
+
+        # 1. Verificar que el gallo existe y pertenece al usuario
+        query_gallo = text("""
+            SELECT id, fotos_adicionales, foto_principal_url
+            FROM gallos
+            WHERE id = :gallo_id AND user_id = :user_id
+        """)
+        gallo = db.execute(query_gallo, {
+            "gallo_id": gallo_id,
+            "user_id": current_user_id
+        }).fetchone()
+
+        if not gallo:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Gallo no encontrado o no pertenece al usuario"
+            )
+
+        # 2. Eliminar de Cloudinary
+        print(f"🔥 Eliminando foto de Cloudinary: {decoded_public_id}")
+        cloudinary_result = await CloudinaryService.delete_photo(decoded_public_id)
+
+        if not cloudinary_result.get('success', False):
+            print(f"⚠️ Advertencia: Error eliminando de Cloudinary: {cloudinary_result}")
+        else:
+            print(f"✅ Foto eliminada de Cloudinary exitosamente")
+
+        # 3. Actualizar fotos_adicionales JSON
+        fotos_adicionales_json = gallo.fotos_adicionales if gallo.fotos_adicionales else "[]"
+        try:
+            fotos_adicionales = json.loads(fotos_adicionales_json)
+        except:
+            fotos_adicionales = []
+
+        # Filtrar la foto eliminada
+        fotos_adicionales = [
+            foto for foto in fotos_adicionales
+            if foto.get('cloudinary_public_id') != decoded_public_id
+        ]
+
+        # 4. Actualizar en la base de datos
+        update_query = text("""
+            UPDATE gallos
+            SET fotos_adicionales = :fotos_adicionales,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :gallo_id AND user_id = :user_id
+        """)
+
+        db.execute(update_query, {
+            "fotos_adicionales": json.dumps(fotos_adicionales),
+            "gallo_id": gallo_id,
+            "user_id": current_user_id
+        })
+        db.commit()
+
+        print(f"✅ Foto eliminada exitosamente. Fotos restantes: {len(fotos_adicionales)}")
+
+        return {
+            "success": True,
+            "message": "Foto eliminada exitosamente",
+            "fotos_restantes": len(fotos_adicionales),
+            "cloudinary_eliminado": cloudinary_result.get('success', False)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error eliminando foto: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error eliminando foto: {str(e)}"
+        )

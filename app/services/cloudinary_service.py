@@ -446,3 +446,38 @@ class CloudinaryService:
                 status_code=500,
                 detail=f"Error obteniendo estadísticas: {str(e)}"
             )
+
+    @staticmethod
+    async def delete_photo(public_id: str) -> Dict[str, Any]:
+        """🗑️ Eliminar una foto específica de Cloudinary"""
+
+        try:
+            print(f"🔥 Eliminando foto de Cloudinary: {public_id}")
+
+            # Eliminar de Cloudinary
+            result = cloudinary.uploader.destroy(public_id)
+
+            if result.get('result') == 'ok':
+                return {
+                    'success': True,
+                    'message': f'Foto eliminada exitosamente: {public_id}',
+                    'public_id': public_id,
+                    'cloudinary_result': result
+                }
+            else:
+                print(f"⚠️ Advertencia: Cloudinary reportó: {result}")
+                return {
+                    'success': False,
+                    'message': f'Error eliminando foto: {result.get("result", "unknown")}',
+                    'public_id': public_id,
+                    'cloudinary_result': result
+                }
+
+        except Exception as e:
+            print(f"❌ Error eliminando foto de Cloudinary: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Error eliminando foto: {str(e)}',
+                'public_id': public_id,
+                'error': str(e)
+            }
