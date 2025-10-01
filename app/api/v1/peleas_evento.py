@@ -51,7 +51,7 @@ async def crear_pelea_evento(
     Opcionalmente puede subir video a Cloudinary.
     """
     try:
-        logger.info(f"[CREAR PELEA] Admin {current_user['id']} creando pelea #{numero_pelea} para evento {evento_id}")
+        logger.info(f"[CREAR PELEA] Admin {current_user['user_id']} creando pelea #{numero_pelea} para evento {evento_id}")
 
         # Verificar que el evento existe
         evento = db.query(EventoTransmision).filter(EventoTransmision.id == evento_id).first()
@@ -100,7 +100,7 @@ async def crear_pelea_evento(
             galpon_derecha=galpon_derecha,
             gallo_derecha_nombre=gallo_derecha_nombre,
             hora_inicio_estimada=hora_obj,
-            admin_editor_id=current_user['id'],
+            admin_editor_id=current_user['user_id'],
             estado_video='sin_video'
         )
 
@@ -358,7 +358,7 @@ async def actualizar_pelea(
                 logger.error(f"[ACTUALIZAR PELEA] Error subiendo video: {e}")
                 pelea.estado_video = 'sin_video'
 
-        pelea.admin_editor_id = current_user['id']
+        pelea.admin_editor_id = current_user['user_id']
 
         db.commit()
         db.refresh(pelea)
@@ -423,7 +423,7 @@ async def cambiar_orden_pelea(
                 )
 
         pelea.numero_pelea = nuevo_numero
-        pelea.admin_editor_id = current_user['id']
+        pelea.admin_editor_id = current_user['user_id']
 
         db.commit()
         db.refresh(pelea)
