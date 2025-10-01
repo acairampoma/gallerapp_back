@@ -315,6 +315,8 @@ if fcm_router:
     )
     print("✅ Router FCM simple activado")
 
+# IMPORTANTE: peleas_evento_router debe ir ANTES que transmisiones_router
+# porque ambos usan /transmisiones/eventos/* y peleas_evento tiene rutas más específicas
 if peleas_evento_router:
     app.include_router(
         peleas_evento_router,

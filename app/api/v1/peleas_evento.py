@@ -24,6 +24,124 @@ logger = logging.getLogger("galloapp.peleas_evento")
 router = APIRouter(prefix="/transmisiones/eventos", tags=["🥊 Peleas de Evento"])
 
 # ========================================
+# ENDPOINTS PÚBLICOS - VIDEOTECA (DEBE IR PRIMERO)
+# ========================================
+
+@router.get("/videoteca", response_model=List[dict])
+async def listar_videoteca(
+    fecha_inicio: Optional[str] = None,
+    fecha_fin: Optional[str] = None,
+    coliseo_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    📹 Listar peleas con video disponible para videoteca
+
+    **Público - No requiere autenticación**
+
+    Retorna peleas de eventos pasados que tienen video disponible.
+    Se puede filtrar por:
+    - Rango de fechas (fecha_inicio, fecha_fin)
+    - Coliseo (coliseo_id)
+
+    Agrupa las peleas por evento para mejor visualización.
+    """
+    try:
+        logger.info(f"[VIDEOTECA] Obteniendo peleas con video - Filtros: fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, coliseo_id={coliseo_id}")
+
+        # Query base: eventos con peleas que tienen video
+        query = db.query(EventoTransmision).join(
+            PeleaEvento,
+            EventoTransmision.id == PeleaEvento.evento_id
+        ).filter(
+            PeleaEvento.video_url.isnot(None),
+            PeleaEvento.estado_video == 'disponible'
+        )
+
+        # Filtro por fechas
+        if fecha_inicio:
+            try:
+                fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+                query = query.filter(EventoTransmision.fecha_evento >= fecha_inicio_dt)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Formato de fecha_inicio inválido. Use: YYYY-MM-DD"
+                )
+
+        if fecha_fin:
+            try:
+                fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                query = query.filter(EventoTransmision.fecha_evento <= fecha_fin_dt)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Formato de fecha_fin inválido. Use: YYYY-MM-DD"
+                )
+
+        # Filtro por coliseo
+        if coliseo_id:
+            query = query.filter(EventoTransmision.coliseo_id == coliseo_id)
+
+        # Obtener eventos únicos ordenados por fecha descendente
+        eventos = query.distinct().order_by(desc(EventoTransmision.fecha_evento)).all()
+
+        # Construir respuesta con eventos y sus peleas
+        resultado = []
+        for evento in eventos:
+            # Obtener peleas del evento que tienen video
+            peleas = db.query(PeleaEvento).filter(
+                and_(
+                    PeleaEvento.evento_id == evento.id,
+                    PeleaEvento.video_url.isnot(None),
+                    PeleaEvento.estado_video == 'disponible'
+                )
+            ).order_by(PeleaEvento.numero_pelea).all()
+
+            if peleas:
+                resultado.append({
+                    "evento_id": evento.id,
+                    "evento_titulo": evento.titulo,
+                    "evento_descripcion": evento.descripcion,
+                    "fecha_evento": evento.fecha_evento.isoformat() if evento.fecha_evento else None,
+                    "coliseo_id": evento.coliseo_id,
+                    "coliseo_nombre": evento.coliseo.nombre if evento.coliseo else None,
+                    "imagen_portada": evento.imagen_portada,
+                    "total_peleas": len(peleas),
+                    "peleas": [
+                        {
+                            "id": p.id,
+                            "numero_pelea": p.numero_pelea,
+                            "titulo_pelea": p.titulo_pelea,
+                            "descripcion_pelea": p.descripcion_pelea,
+                            "galpon_izquierda": p.galpon_izquierda,
+                            "gallo_izquierda_nombre": p.gallo_izquierda_nombre,
+                            "galpon_derecha": p.galpon_derecha,
+                            "gallo_derecha_nombre": p.gallo_derecha_nombre,
+                            "resultado": p.resultado,
+                            "video_url": p.video_url,
+                            "thumbnail_pelea_url": p.thumbnail_pelea_url,
+                            "duracion_minutos": p.duracion_minutos,
+                            "hora_inicio_real": p.hora_inicio_real.isoformat() if p.hora_inicio_real else None,
+                        }
+                        for p in peleas
+                    ]
+                })
+
+        logger.info(f"[VIDEOTECA] {len(resultado)} eventos con video encontrados")
+        return resultado
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[VIDEOTECA] Error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener videoteca: {str(e)}"
+        )
+
+
+# ========================================
 # ENDPOINTS DE PELEAS DE EVENTO
 # ========================================
 
