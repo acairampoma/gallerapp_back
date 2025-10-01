@@ -115,6 +115,14 @@ except ImportError as e:
     print(f"⚠️ Sistema de transmisiones no disponible: {e}")
     transmisiones_router = None
 
+# 🥊 Cargar módulo peleas_evento
+try:
+    from app.api.v1.peleas_evento import router as peleas_evento_router
+    print("   - ✅ Sistema de peleas de evento")
+except ImportError as e:
+    print(f"⚠️ Sistema de peleas de evento no disponible: {e}")
+    peleas_evento_router = None
+
 # 🛒 Cargar módulo marketplace
 try:
     from app.api.v1.marketplace import router as marketplace_router
@@ -306,6 +314,14 @@ if fcm_router:
         tags=["🔔 FCM Tokens"]
     )
     print("✅ Router FCM simple activado")
+
+if peleas_evento_router:
+    app.include_router(
+        peleas_evento_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de peleas de evento activado")
 
 if transmisiones_router:
     app.include_router(

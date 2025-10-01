@@ -114,11 +114,51 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     
     # Buscar usuario en BD
     user = db.query(User).filter(User.id == user_id).first()
-    
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
         )
-    
+
     return user
+
+# 👑 Dependency para verificar que el usuario sea ADMIN
+async def get_admin_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> dict:
+    """Obtener usuario y verificar que sea administrador"""
+    from app.models.user import User  # Import local para evitar circular imports
+
+    token = credentials.credentials
+    payload = SecurityService.verify_token(token)
+    user_id: int = payload.get("sub")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+
+    # Buscar usuario en BD
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Verificar que sea admin
+    if not user.es_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permisos de administrador"
+        )
+
+    return {
+        "user_id": user.id,
+        "email": user.email,
+        "es_admin": user.es_admin
+    }

@@ -290,6 +290,7 @@ async def listar_publicaciones_publicas(
 @router.get("/mis-publicaciones", response_model=Dict[str, Any])
 async def listar_mis_publicaciones(
     estado: Optional[str] = Query(None, description="Filtrar por estado"),
+    estados: Optional[str] = Query(None, description="Filtrar por múltiples estados separados por coma"),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
     current_user_id: int = Depends(get_current_user_id),
@@ -325,14 +326,37 @@ async def listar_mis_publicaciones(
 
         params = {'user_id': current_user_id}
 
-        if estado:
-            query += " AND mp.estado = :estado"
-            params['estado'] = estado
+        # 🔥 NUEVO: Filtro por múltiples estados o estado único
+        estado_filter = ""
+        if estados:
+            # Múltiples estados separados por coma
+            estados_list = [estado.strip() for estado in estados.split(',')]
+            # Manejar el caso de 'null' que debe ser IS NULL
+            if 'null' in estados_list:
+                otros_estados = [e for e in estados_list if e != 'null']
+                if otros_estados:
+                    estado_filter = f" AND (mp.estado IS NULL OR mp.estado IN ({','.join([f':estado_{i}' for i, _ in enumerate(otros_estados)])}))"
+                    for i, est in enumerate(otros_estados):
+                        params[f'estado_{i}'] = est
+                else:
+                    estado_filter = " AND mp.estado IS NULL"
+            else:
+                estado_filter = f" AND mp.estado IN ({','.join([f':estado_{i}' for i, _ in enumerate(estados_list)])})"
+                for i, est in enumerate(estados_list):
+                    params[f'estado_{i}'] = est
+        elif estado:
+            # Estado único (backward compatibility)
+            if estado == 'null':
+                estado_filter = " AND mp.estado IS NULL"
+            else:
+                estado_filter = " AND mp.estado = :estado"
+                params['estado'] = estado
+
+        query += estado_filter
 
         # Contar total
         count_query = f"SELECT COUNT(*) as total FROM marketplace_publicaciones mp WHERE mp.user_id = :user_id"
-        if estado:
-            count_query += " AND mp.estado = :estado"
+        count_query += estado_filter
 
         total_result = db.execute(text(count_query), params).first()
         total_registros = total_result.total

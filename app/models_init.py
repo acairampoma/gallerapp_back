@@ -20,6 +20,7 @@ from app.models.gallo_simple import Gallo
 from app.models.pelea import Pelea
 from app.models.tope import Tope
 from app.models.evento_transmision import EventoTransmision
+from app.models.pelea_evento import PeleaEvento
 
 # Lista de todos los modelos disponibles
 __all__ = [
@@ -33,7 +34,8 @@ __all__ = [
     "Pelea",
     "Tope",
     "Coliseo",
-    "EventoTransmision"
+    "EventoTransmision",
+    "PeleaEvento"
 ]
 
 def create_all_tables(engine):
@@ -53,5 +55,6 @@ def get_all_models():
         'Pelea': Pelea,
         'Tope': Tope,
         'Coliseo': Coliseo,
-        'EventoTransmision': EventoTransmision
+        'EventoTransmision': EventoTransmision,
+        'PeleaEvento': PeleaEvento
     }

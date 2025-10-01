@@ -26,6 +26,7 @@ class EventoTransmision(Base):
     # Relaciones
     coliseo = relationship("Coliseo", back_populates="eventos")
     admin_creador = relationship("User")
+    peleas = relationship("PeleaEvento", back_populates="evento", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<EventoTransmision(id={self.id}, titulo='{self.titulo}', estado='{self.estado}')>"

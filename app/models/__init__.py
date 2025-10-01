@@ -13,10 +13,11 @@ from app.models.vacuna import Vacuna
 from app.models.inversion import Inversion
 from app.models.marketplace import MarketplacePublicacion, MarketplaceFavorito
 from app.models.fcm_token import FCMToken
+from app.models.pelea_evento import PeleaEvento
 
 __all__ = [
     "User", "Profile", "Raza", "Gallo",
     "Suscripcion", "PlanCatalogo", "PagoPendiente", "NotificacionAdmin",
     "Tope", "Pelea", "Vacuna", "Inversion",
-    "MarketplacePublicacion", "MarketplaceFavorito", "FCMToken"
+    "MarketplacePublicacion", "MarketplaceFavorito", "FCMToken", "PeleaEvento"
 ]
