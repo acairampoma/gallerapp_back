@@ -20,6 +20,7 @@ from app.schemas.pelea_evento import (
     PeleaEventoOrdenUpdate
 )
 from app.services.pdf_service_reportlab import pdf_service_reportlab
+from app.services.imagekit_service import imagekit_service  # 🎬 ImageKit para videos
 
 # Configurar logger
 logger = logging.getLogger("galloapp.peleas_evento")
@@ -224,42 +225,37 @@ async def crear_pelea_evento(
         db.add(nueva_pelea)
         db.flush()  # Para obtener el ID
 
-        # Subir video si se proporcionó
+        # 🎬 Subir video si se proporcionó - USANDO IMAGEKIT
         if video:
-            logger.info(f"[CREAR PELEA] Subiendo video a Cloudinary...")
+            logger.info(f"[CREAR PELEA] 🎬 Subiendo video a ImageKit...")
+            logger.info(f"[CREAR PELEA] Content-Type recibido: {video.content_type}")
+            logger.info(f"[CREAR PELEA] Filename: {video.filename}")
 
-            # Validar tipo de archivo
-            if not video.content_type.startswith('video/'):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="El archivo debe ser un video"
-                )
-
-            # Subir a Cloudinary
             try:
                 nueva_pelea.estado_video = 'procesando'
                 db.commit()
 
-                upload_result = cloudinary.uploader.upload(
-                    video.file,
-                    resource_type="video",
-                    folder=f"peleas_evento/{evento_id}",
-                    public_id=f"pelea_{nueva_pelea.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    eager=[
-                        {"width": 1280, "height": 720, "crop": "limit", "quality": "auto"},
-                        {"width": 640, "height": 360, "crop": "limit", "quality": "auto:low"}
-                    ],
-                    eager_async=True
+                # Leer contenido del archivo
+                video_content = await video.read()
+
+                # Subir a ImageKit
+                upload_result = imagekit_service.upload_video(
+                    file_content=video_content,
+                    file_name=f"pelea_{nueva_pelea.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{video.filename}",
+                    folder=f"eventos_peleas/evento_{evento_id}"
                 )
 
-                nueva_pelea.video_url = upload_result.get('secure_url')
-                nueva_pelea.thumbnail_pelea_url = upload_result.get('thumbnail_url')
-                nueva_pelea.estado_video = 'disponible'
+                if upload_result:
+                    nueva_pelea.video_url = upload_result.get('url')
+                    nueva_pelea.thumbnail_pelea_url = upload_result.get('thumbnail_url')
+                    nueva_pelea.estado_video = 'disponible'
 
-                logger.info(f"[CREAR PELEA] Video subido exitosamente: {nueva_pelea.video_url}")
+                    logger.info(f"[CREAR PELEA] ✅ Video subido exitosamente a ImageKit: {nueva_pelea.video_url}")
+                else:
+                    raise Exception("ImageKit no retornó resultado de upload")
 
             except Exception as e:
-                logger.error(f"[CREAR PELEA] Error subiendo video: {e}")
+                logger.error(f"[CREAR PELEA] ❌ Error subiendo video a ImageKit: {e}")
                 nueva_pelea.estado_video = 'sin_video'
                 # No fallar la creación si falla el video
 
@@ -439,40 +435,37 @@ async def actualizar_pelea(
                 )
             pelea.resultado = resultado if resultado else None
 
-        # Subir nuevo video si se proporciona
+        # 🎬 Subir nuevo video si se proporciona - USANDO IMAGEKIT
         if video:
-            logger.info(f"[ACTUALIZAR PELEA] Subiendo nuevo video...")
-
-            if not video.content_type.startswith('video/'):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="El archivo debe ser un video"
-                )
+            logger.info(f"[ACTUALIZAR PELEA] 🎬 Subiendo nuevo video a ImageKit...")
+            logger.info(f"[ACTUALIZAR PELEA] Content-Type recibido: {video.content_type}")
+            logger.info(f"[ACTUALIZAR PELEA] Filename: {video.filename}")
 
             try:
                 pelea.estado_video = 'procesando'
                 db.commit()
 
-                upload_result = cloudinary.uploader.upload(
-                    video.file,
-                    resource_type="video",
-                    folder=f"peleas_evento/{pelea.evento_id}",
-                    public_id=f"pelea_{pelea.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    eager=[
-                        {"width": 1280, "height": 720, "crop": "limit", "quality": "auto"},
-                        {"width": 640, "height": 360, "crop": "limit", "quality": "auto:low"}
-                    ],
-                    eager_async=True
+                # Leer contenido del archivo
+                video_content = await video.read()
+
+                # Subir a ImageKit
+                upload_result = imagekit_service.upload_video(
+                    file_content=video_content,
+                    file_name=f"pelea_{pelea.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{video.filename}",
+                    folder=f"eventos_peleas/evento_{pelea.evento_id}"
                 )
 
-                pelea.video_url = upload_result.get('secure_url')
-                pelea.thumbnail_pelea_url = upload_result.get('thumbnail_url')
-                pelea.estado_video = 'disponible'
+                if upload_result:
+                    pelea.video_url = upload_result.get('url')
+                    pelea.thumbnail_pelea_url = upload_result.get('thumbnail_url')
+                    pelea.estado_video = 'disponible'
 
-                logger.info(f"[ACTUALIZAR PELEA] Video actualizado exitosamente")
+                    logger.info(f"[ACTUALIZAR PELEA] ✅ Video actualizado exitosamente en ImageKit")
+                else:
+                    raise Exception("ImageKit no retornó resultado de upload")
 
             except Exception as e:
-                logger.error(f"[ACTUALIZAR PELEA] Error subiendo video: {e}")
+                logger.error(f"[ACTUALIZAR PELEA] ❌ Error subiendo video a ImageKit: {e}")
                 pelea.estado_video = 'sin_video'
 
         pelea.admin_editor_id = current_user['user_id']

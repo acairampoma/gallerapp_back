@@ -184,6 +184,13 @@ cloudinary.config(
     api_secret=settings.CLOUDINARY_API_SECRET
 )
 
+# 🎬 Inicializar ImageKit service (para videos de evento x peleas)
+try:
+    from app.services.imagekit_service import imagekit_service
+    print("✅ ImageKit service inicializado para videos de evento x peleas")
+except Exception as e:
+    print(f"⚠️ Error inicializando ImageKit: {e}")
+
 # ❌ Exception handler global
 @app.exception_handler(CustomException)
 async def custom_exception_handler(request: Request, exc: CustomException):
