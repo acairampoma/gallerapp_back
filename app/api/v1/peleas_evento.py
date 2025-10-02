@@ -37,11 +37,11 @@ async def listar_videoteca(
     db: Session = Depends(get_db)
 ):
     """
-    📹 Listar peleas con video disponible para videoteca
+    📹 Listar eventos para videoteca
 
     **Público - No requiere autenticación**
 
-    Retorna peleas de eventos pasados que tienen video disponible.
+    Retorna eventos con sus peleas (tengan o no video).
     Se puede filtrar por:
     - Rango de fechas (fecha_inicio, fecha_fin)
     - Coliseo (coliseo_id)
@@ -49,15 +49,12 @@ async def listar_videoteca(
     Agrupa las peleas por evento para mejor visualización.
     """
     try:
-        logger.info(f"[VIDEOTECA] Obteniendo peleas con video - Filtros: fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, coliseo_id={coliseo_id}")
+        logger.info(f"[VIDEOTECA] Obteniendo eventos - Filtros: fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, coliseo_id={coliseo_id}")
 
-        # Query base: eventos con peleas que tienen video
+        # Query base: todos los eventos con peleas
         query = db.query(EventoTransmision).join(
             PeleaEvento,
             EventoTransmision.id == PeleaEvento.evento_id
-        ).filter(
-            PeleaEvento.video_url.isnot(None),
-            PeleaEvento.estado_video == 'disponible'
         )
 
         # Filtro por fechas
@@ -65,6 +62,7 @@ async def listar_videoteca(
             try:
                 fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
                 query = query.filter(EventoTransmision.fecha_evento >= fecha_inicio_dt)
+                logger.info(f"[VIDEOTECA] Filtrando desde: {fecha_inicio_dt}")
             except ValueError:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -75,6 +73,7 @@ async def listar_videoteca(
             try:
                 fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
                 query = query.filter(EventoTransmision.fecha_evento <= fecha_fin_dt)
+                logger.info(f"[VIDEOTECA] Filtrando hasta: {fecha_fin_dt}")
             except ValueError:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -84,27 +83,25 @@ async def listar_videoteca(
         # Filtro por coliseo
         if coliseo_id:
             query = query.filter(EventoTransmision.coliseo_id == coliseo_id)
+            logger.info(f"[VIDEOTECA] Filtrando por coliseo_id: {coliseo_id}")
 
         # Obtener eventos únicos ordenados por fecha descendente
         eventos = query.distinct().order_by(desc(EventoTransmision.fecha_evento)).all()
+        logger.info(f"[VIDEOTECA] Eventos encontrados antes de procesar: {len(eventos)}")
 
         # Construir respuesta con eventos y sus peleas
         resultado = []
         for evento in eventos:
-            # Obtener peleas del evento que tienen video
+            # Obtener TODAS las peleas del evento
             peleas = db.query(PeleaEvento).filter(
-                and_(
-                    PeleaEvento.evento_id == evento.id,
-                    PeleaEvento.video_url.isnot(None),
-                    PeleaEvento.estado_video == 'disponible'
-                )
+                PeleaEvento.evento_id == evento.id
             ).order_by(PeleaEvento.numero_pelea).all()
 
             if peleas:
                 resultado.append({
-                    "evento_id": evento.id,
-                    "evento_titulo": evento.titulo,
-                    "evento_descripcion": evento.descripcion,
+                    "id": evento.id,
+                    "titulo": evento.titulo,
+                    "descripcion": evento.descripcion,
                     "fecha_evento": evento.fecha_evento.isoformat() if evento.fecha_evento else None,
                     "coliseo_id": evento.coliseo_id,
                     "coliseo_nombre": evento.coliseo.nombre if evento.coliseo else None,
@@ -130,7 +127,7 @@ async def listar_videoteca(
                     ]
                 })
 
-        logger.info(f"[VIDEOTECA] {len(resultado)} eventos con video encontrados")
+        logger.info(f"[VIDEOTECA] {len(resultado)} eventos retornados")
         return resultado
 
     except HTTPException:

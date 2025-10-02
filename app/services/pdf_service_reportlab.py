@@ -449,55 +449,98 @@ class PDFServiceReportLab:
             if peleas:
                 story.append(Paragraph("🥊 DETALLE DE PELEAS", self.styles['SectionTitle']))
 
-                # Encabezado de tabla
-                peleas_data = [['#', 'Título', 'Galpón Izq.', 'Gallo Izq.', 'Galpón Der.', 'Gallo Der.', 'Hora', 'Resultado']]
+                # Encabezado de tabla - Diseño profesional
+                peleas_data = [['#', 'Título Pelea', 'Esquina Izquierda', 'VS', 'Esquina Derecha', 'Hora', 'Ganador']]
 
                 for pelea in peleas:
                     # Formatear hora
                     hora = pelea.get('hora_inicio_estimada', '-')
                     if hora and hora != '-':
                         try:
-                            # Si viene como time object o string HH:MM:SS
                             if isinstance(hora, str) and len(hora) >= 5:
                                 hora = hora[:5]  # Tomar solo HH:MM
                         except:
                             pass
 
                     # Formatear resultado
-                    resultado = pelea.get('resultado', 'Pendiente')
+                    resultado = pelea.get('resultado', '')
                     if resultado == 'izquierda':
-                        resultado = '← Izq.'
+                        resultado = 'Izquierda'
                     elif resultado == 'derecha':
-                        resultado = 'Der. →'
+                        resultado = 'Derecha'
                     elif resultado == 'empate':
                         resultado = 'Empate'
                     else:
                         resultado = '-'
 
+                    # Combinar galpón y gallo en una sola celda profesional
+                    esquina_izq = pelea.get('galpon_izquierda', '')
+                    gallo_izq = pelea.get('gallo_izquierda_nombre', '')
+                    if esquina_izq and gallo_izq:
+                        celda_izq = f"{esquina_izq}\n{gallo_izq}"
+                    else:
+                        celda_izq = esquina_izq or gallo_izq or '-'
+
+                    esquina_der = pelea.get('galpon_derecha', '')
+                    gallo_der = pelea.get('gallo_derecha_nombre', '')
+                    if esquina_der and gallo_der:
+                        celda_der = f"{esquina_der}\n{gallo_der}"
+                    else:
+                        celda_der = esquina_der or gallo_der or '-'
+
                     peleas_data.append([
                         str(pelea.get('numero_pelea', '')),
-                        pelea.get('titulo_pelea', '')[:20] if pelea.get('titulo_pelea') else '',
-                        pelea.get('galpon_izquierda', '')[:15] if pelea.get('galpon_izquierda') else '',
-                        pelea.get('gallo_izquierda_nombre', '')[:15] if pelea.get('gallo_izquierda_nombre') else '',
-                        pelea.get('galpon_derecha', '')[:15] if pelea.get('galpon_derecha') else '',
-                        pelea.get('gallo_derecha_nombre', '')[:15] if pelea.get('gallo_derecha_nombre') else '',
+                        pelea.get('titulo_pelea', '')[:25] if pelea.get('titulo_pelea') else '',
+                        celda_izq,
+                        'VS',
+                        celda_der,
                         hora,
                         resultado
                     ])
 
                 peleas_table = Table(
                     peleas_data,
-                    colWidths=[0.8*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 1.2*cm, 1.5*cm]
+                    colWidths=[1*cm, 3.5*cm, 3*cm, 0.8*cm, 3*cm, 1.5*cm, 2*cm],
+                    repeatRows=1  # Repetir header en cada página
                 )
+
+                # Estilo profesional con bordes sutiles
                 peleas_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), self.primary_color),
+                    # Header
+                    ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2c5530')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, HexColor('#f8f9fa')])
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('TOPPADDING', (0, 0), (-1, 0), 8),
+
+                    # Body
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),  # Número en negrita
+                    ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Número centrado
+                    ('ALIGN', (1, 1), (1, -1), 'LEFT'),    # Título alineado izquierda
+                    ('ALIGN', (2, 1), (2, -1), 'CENTER'),  # Esquina izq centrada
+                    ('ALIGN', (3, 1), (3, -1), 'CENTER'),  # VS centrado
+                    ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Esquina der centrada
+                    ('ALIGN', (5, 1), (5, -1), 'CENTER'),  # Hora centrada
+                    ('ALIGN', (6, 1), (6, -1), 'CENTER'),  # Ganador centrado
+                    ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+                    ('TOPPADDING', (0, 1), (-1, -1), 6),
+                    ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+
+                    # Bordes profesionales (sutiles)
+                    ('LINEBELOW', (0, 0), (-1, 0), 1.5, HexColor('#2c5530')),  # Línea bajo header
+                    ('LINEBELOW', (0, 1), (-1, -2), 0.5, HexColor('#e0e0e0')),  # Líneas sutiles entre filas
+                    ('LINEBELOW', (0, -1), (-1, -1), 1, HexColor('#cccccc')),   # Línea final más gruesa
+                    ('LINEBEFORE', (0, 0), (0, -1), 0.5, HexColor('#e0e0e0')),  # Borde izquierdo
+                    ('LINEAFTER', (-1, 0), (-1, -1), 0.5, HexColor('#e0e0e0')), # Borde derecho
+
+                    # Alternar colores de filas (muy sutil)
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, HexColor('#fafafa')])
                 ]))
 
                 story.append(peleas_table)
