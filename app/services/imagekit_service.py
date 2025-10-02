@@ -54,11 +54,10 @@ class ImageKitService:
             # Convertir bytes a base64 para ImageKit
             file_base64 = base64.b64encode(file_content).decode('utf-8')
 
-            # Opciones de upload
+            # Opciones de upload (SIN response_fields que causa error)
             options = UploadFileRequestOptions(
                 folder=folder,
-                use_unique_file_name=True,
-                response_fields=["file_id", "url", "thumbnail_url", "file_type", "file_path"]
+                use_unique_file_name=True
             )
 
             # Subir archivo
@@ -77,9 +76,9 @@ class ImageKitService:
                 return {
                     'url': result_data.get('url'),
                     'file_id': result_data.get('file_id'),
-                    'thumbnail_url': result_data.get('thumbnail_url'),
-                    'file_path': result_data.get('file_path'),
-                    'file_type': result_data.get('file_type')
+                    'thumbnail_url': result_data.get('thumbnail_url') or result_data.get('thumbnailUrl'),
+                    'file_path': result_data.get('file_path') or result_data.get('filePath'),
+                    'file_type': result_data.get('file_type') or result_data.get('fileType')
                 }
             else:
                 logger.error("❌ [IMAGEKIT] Upload falló - No se recibió respuesta")
@@ -87,6 +86,7 @@ class ImageKitService:
 
         except Exception as e:
             logger.error(f"❌ [IMAGEKIT] Error subiendo video: {str(e)}")
+            logger.exception(e)  # Log completo del error
             return None
 
     def delete_video(self, file_id: str) -> bool:

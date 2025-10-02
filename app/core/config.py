@@ -20,8 +20,8 @@ class Settings:
     CLOUDINARY_API_SECRET: str = config("CLOUDINARY_API_SECRET", default="1uzQrkFD1Rbj8vPOClFBUEIwBn0")
 
     # 🎬 ImageKit (para videos de evento x peleas)
-    IMAGEKIT_PRIVATE_KEY: str = config("IMAGEKIT_PRIVATE_KEY", default="private_FChdQz74nrcLIWrOxd9+tWXNSWA=")
-    IMAGEKIT_PUBLIC_KEY: str = config("IMAGEKIT_PUBLIC_KEY", default="public_71ikqJwMTi45+3s8x8ZJTmoXYv0=")
+    IMAGEKIT_PRIVATE_KEY: str = config("IMAGEKIT_PRIVATE_KEY", default="private_juJdHhsZIjOMwacjNq6/94YqfYo=")
+    IMAGEKIT_PUBLIC_KEY: str = config("IMAGEKIT_PUBLIC_KEY", default="public_m7rawfzMCD/O2+1pNfMA8aHqCkk=")
     IMAGEKIT_URL_ENDPOINT: str = config("IMAGEKIT_URL_ENDPOINT", default="https://ik.imagekit.io/3y7rfi7jj")
 
     # 📧 SendGrid Email Service
