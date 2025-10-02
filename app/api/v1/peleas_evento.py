@@ -6,6 +6,7 @@ from typing import List, Optional
 import logging
 import cloudinary
 import cloudinary.uploader
+import base64
 from datetime import datetime, time
 
 from app.database import get_db
@@ -18,6 +19,7 @@ from app.schemas.pelea_evento import (
     PeleaEventoResponse,
     PeleaEventoOrdenUpdate
 )
+from app.services.pdf_service_reportlab import pdf_service_reportlab
 
 # Configurar logger
 logger = logging.getLogger("galloapp.peleas_evento")
@@ -557,6 +559,104 @@ async def cambiar_orden_pelea(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al cambiar orden: {str(e)}"
+        )
+
+
+@router.get("/{evento_id}/pdf")
+async def generar_pdf_relacion_peleas(
+    evento_id: int,
+    current_user: dict = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    📄 Generar PDF con relación de peleas del evento
+
+    **Solo ADMIN**
+
+    Genera un PDF con los datos del evento y el detalle de todas sus peleas.
+    Retorna el PDF como base64 para compartir por WhatsApp.
+    """
+    try:
+        logger.info(f"[PDF PELEAS] Admin {current_user['user_id']} generando PDF para evento {evento_id}")
+
+        # Verificar que el servicio PDF está disponible
+        if not pdf_service_reportlab:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Servicio de PDF no disponible - ReportLab no instalado"
+            )
+
+        # Obtener evento
+        evento = db.query(EventoTransmision).filter(EventoTransmision.id == evento_id).first()
+        if not evento:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Evento {evento_id} no encontrado"
+            )
+
+        # Obtener peleas del evento
+        peleas = db.query(PeleaEvento)\
+            .filter(PeleaEvento.evento_id == evento_id)\
+            .order_by(PeleaEvento.numero_pelea)\
+            .all()
+
+        # Preparar datos para el PDF
+        datos_evento = {
+            "evento": {
+                "titulo": evento.titulo,
+                "fecha_evento": evento.fecha_evento.isoformat() if evento.fecha_evento else None,
+                "coliseo_nombre": evento.coliseo.nombre if evento.coliseo else "No especificado",
+                "descripcion": evento.descripcion or "Sin descripción"
+            },
+            "peleas": [
+                {
+                    "numero_pelea": p.numero_pelea,
+                    "titulo_pelea": p.titulo_pelea,
+                    "galpon_izquierda": p.galpon_izquierda,
+                    "gallo_izquierda_nombre": p.gallo_izquierda_nombre,
+                    "galpon_derecha": p.galpon_derecha,
+                    "gallo_derecha_nombre": p.gallo_derecha_nombre,
+                    "hora_inicio_estimada": p.hora_inicio_estimada.isoformat() if p.hora_inicio_estimada else None,
+                    "resultado": p.resultado
+                }
+                for p in peleas
+            ],
+            "metadata": {
+                "fecha_generacion": datetime.now().isoformat(),
+                "usuario_id": current_user['user_id'],
+                "version": "v1.0"
+            }
+        }
+
+        # Generar PDF
+        pdf_bytes = pdf_service_reportlab.generar_relacion_peleas_pdf(datos_evento)
+
+        if not pdf_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al generar PDF"
+            )
+
+        # Convertir a base64
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+
+        logger.info(f"[PDF PELEAS] PDF generado exitosamente - {len(pdf_bytes)} bytes")
+
+        return {
+            "success": True,
+            "message": "PDF generado exitosamente",
+            "pdf_base64": pdf_base64,
+            "evento_titulo": evento.titulo,
+            "total_peleas": len(peleas)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[PDF PELEAS] Error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar PDF: {str(e)}"
         )
 
 

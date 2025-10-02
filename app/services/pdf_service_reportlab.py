@@ -360,11 +360,185 @@ class PDFServiceReportLab:
             "todo_ok": REPORTLAB_AVAILABLE
         }
     
+    def generar_relacion_peleas_pdf(self, datos_evento: Dict[str, Any]) -> Optional[bytes]:
+        """
+        🥊 GENERA PDF DE RELACIÓN DE PELEAS DE UN EVENTO
+
+        Args:
+            datos_evento: Diccionario con:
+                - evento: {titulo, fecha_evento, coliseo_nombre, descripcion}
+                - peleas: [{numero_pelea, titulo_pelea, galpon_izquierda, gallo_izquierda_nombre,
+                           galpon_derecha, gallo_derecha_nombre, hora_inicio_estimada, resultado}]
+                - metadata: {fecha_generacion, usuario_id, version}
+
+        Returns:
+            bytes: PDF generado como bytes, o None si hay error
+        """
+        try:
+            if not REPORTLAB_AVAILABLE:
+                print("❌ ReportLab no disponible")
+                return None
+
+            print("🥊 Iniciando generación de PDF de Relación de Peleas...")
+
+            evento = datos_evento.get('evento', {})
+            peleas = datos_evento.get('peleas', [])
+            metadata = datos_evento.get('metadata', {})
+
+            print(f"📊 Generando relación para evento: {evento.get('titulo', 'Sin título')}")
+            print(f"📊 Total de peleas: {len(peleas)}")
+
+            # Crear buffer en memoria
+            buffer = io.BytesIO()
+
+            # Crear documento PDF
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=A4,
+                rightMargin=2*cm,
+                leftMargin=2*cm,
+                topMargin=2*cm,
+                bottomMargin=2*cm
+            )
+
+            # Construir contenido
+            story = []
+
+            # 🔥 HEADER ÉPICO
+            story.append(Paragraph("🥊 RELACIÓN DE PELEAS", self.styles['CustomTitle']))
+            story.append(Spacer(1, 10))
+
+            # 📋 INFORMACIÓN DEL EVENTO (CABECERA)
+            story.append(Paragraph("📋 DATOS DEL EVENTO", self.styles['SectionTitle']))
+
+            # Formatear fecha
+            fecha_evento = evento.get('fecha_evento', 'No registrada')
+            if fecha_evento and fecha_evento != 'No registrada':
+                try:
+                    from datetime import datetime
+                    fecha_dt = datetime.fromisoformat(fecha_evento.replace('Z', '+00:00'))
+                    fecha_evento = fecha_dt.strftime('%d/%m/%Y')
+                except:
+                    pass
+
+            # Tabla de información del evento
+            evento_data = [
+                ['Título:', evento.get('titulo', 'Sin título')],
+                ['Fecha:', fecha_evento],
+                ['Coliseo:', evento.get('coliseo_nombre', 'No especificado')],
+                ['Descripción:', evento.get('descripcion', 'Sin descripción')],
+                ['Total Peleas:', str(len(peleas))]
+            ]
+
+            evento_table = Table(evento_data, colWidths=[4*cm, 12*cm])
+            evento_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, -1), HexColor('#f8f9fa')),
+                ('TEXTCOLOR', (0, 0), (0, -1), self.primary_color),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 11),
+                ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, HexColor('#f8f9fa')])
+            ]))
+
+            story.append(evento_table)
+            story.append(Spacer(1, 20))
+
+            # 🥊 DETALLE DE PELEAS
+            if peleas:
+                story.append(Paragraph("🥊 DETALLE DE PELEAS", self.styles['SectionTitle']))
+
+                # Encabezado de tabla
+                peleas_data = [['#', 'Título', 'Galpón Izq.', 'Gallo Izq.', 'Galpón Der.', 'Gallo Der.', 'Hora', 'Resultado']]
+
+                for pelea in peleas:
+                    # Formatear hora
+                    hora = pelea.get('hora_inicio_estimada', '-')
+                    if hora and hora != '-':
+                        try:
+                            # Si viene como time object o string HH:MM:SS
+                            if isinstance(hora, str) and len(hora) >= 5:
+                                hora = hora[:5]  # Tomar solo HH:MM
+                        except:
+                            pass
+
+                    # Formatear resultado
+                    resultado = pelea.get('resultado', 'Pendiente')
+                    if resultado == 'izquierda':
+                        resultado = '← Izq.'
+                    elif resultado == 'derecha':
+                        resultado = 'Der. →'
+                    elif resultado == 'empate':
+                        resultado = 'Empate'
+                    else:
+                        resultado = '-'
+
+                    peleas_data.append([
+                        str(pelea.get('numero_pelea', '')),
+                        pelea.get('titulo_pelea', '')[:20] if pelea.get('titulo_pelea') else '',
+                        pelea.get('galpon_izquierda', '')[:15] if pelea.get('galpon_izquierda') else '',
+                        pelea.get('gallo_izquierda_nombre', '')[:15] if pelea.get('gallo_izquierda_nombre') else '',
+                        pelea.get('galpon_derecha', '')[:15] if pelea.get('galpon_derecha') else '',
+                        pelea.get('gallo_derecha_nombre', '')[:15] if pelea.get('gallo_derecha_nombre') else '',
+                        hora,
+                        resultado
+                    ])
+
+                peleas_table = Table(
+                    peleas_data,
+                    colWidths=[0.8*cm, 2.5*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 1.2*cm, 1.5*cm]
+                )
+                peleas_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), self.primary_color),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, HexColor('#f8f9fa')])
+                ]))
+
+                story.append(peleas_table)
+            else:
+                story.append(Paragraph("Sin peleas registradas en este evento", self.styles['CustomNormal']))
+
+            story.append(Spacer(1, 30))
+
+            # 📝 FOOTER
+            story.append(Paragraph("🐓 CASTO DE GALLOS - Sistema Profesional de Gestión", self.styles['CustomSubtitle']))
+
+            footer_text = f"""
+            Documento generado el {metadata.get('fecha_generacion', datetime.now().isoformat())[:19]} |
+            Usuario ID: {metadata.get('usuario_id', 'N/A')} |
+            Versión: {metadata.get('version', 'v1.0')}
+            """
+            story.append(Paragraph(footer_text, self.styles['CustomNormal']))
+
+            # Construir PDF
+            print("📄 Construyendo PDF con ReportLab...")
+            doc.build(story)
+
+            # Obtener bytes
+            pdf_bytes = buffer.getvalue()
+            buffer.close()
+
+            print(f"✅ PDF generado exitosamente - Tamaño: {len(pdf_bytes)} bytes")
+            return pdf_bytes
+
+        except Exception as e:
+            print(f"❌ Error generando PDF de peleas: {str(e)}")
+            print(f"❌ Tipo de error: {type(e).__name__}")
+            import traceback
+            print(f"❌ Stack trace: {traceback.format_exc()}")
+            return None
+
     def test_generacion(self) -> bool:
         """🧪 TEST BÁSICO DE GENERACIÓN DE PDF"""
         try:
             print("🧪 Ejecutando test de generación de PDF con ReportLab...")
-            
+
             # Datos de prueba
             datos_test = {
                 "gallo": {
@@ -394,7 +568,7 @@ class PDFServiceReportLab:
                         "raza": "Raza Padre"
                     },
                     "madre": {
-                        "nombre": "Madre Test", 
+                        "nombre": "Madre Test",
                         "codigo": "MADRE-001",
                         "raza": "Raza Madre"
                     }
@@ -415,16 +589,16 @@ class PDFServiceReportLab:
                     "version": "v1.0"
                 }
             }
-            
+
             pdf_bytes = self.generar_ficha_gallo_pdf(datos_test)
-            
+
             if pdf_bytes and len(pdf_bytes) > 1000:  # PDF debe tener al menos 1KB
                 print(f"✅ Test exitoso - PDF generado: {len(pdf_bytes)} bytes")
                 return True
             else:
                 print("❌ Test fallido - PDF muy pequeño o vacío")
                 return False
-                
+
         except Exception as e:
             print(f"❌ Test fallido con error: {str(e)}")
             return False
