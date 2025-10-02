@@ -105,7 +105,7 @@ async def listar_videoteca(
                     "fecha_evento": evento.fecha_evento.isoformat() if evento.fecha_evento else None,
                     "coliseo_id": evento.coliseo_id,
                     "coliseo_nombre": evento.coliseo.nombre if evento.coliseo else None,
-                    "imagen_portada": evento.imagen_portada,
+                    "thumbnail_url": evento.thumbnail_url,
                     "total_peleas": len(peleas),
                     "peleas": [
                         {
