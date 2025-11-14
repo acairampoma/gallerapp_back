@@ -18,7 +18,7 @@ class FCMToken(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relación con usuarios
-    user = relationship("User", back_populates="fcm_tokens")
+    user = relationship("User")  # back_populates removido temporalmente
     
     def __repr__(self):
         return f"<FCMToken(user_id={self.user_id}, platform={self.platform}, active={self.is_active})>"

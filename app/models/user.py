@@ -26,7 +26,7 @@ class User(Base):
     suscripciones = relationship("Suscripcion", back_populates="user")
     inversiones = relationship("Inversion", back_populates="user")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user")
-    fcm_tokens = relationship("FCMToken", back_populates="user", cascade="all, delete-orphan")
+    # fcm_tokens = relationship("FCMToken", back_populates="user", cascade="all, delete-orphan")  # TEMPORALMENTE COMENTADO
 
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"
