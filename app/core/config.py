@@ -39,7 +39,13 @@ class Settings:
     USE_SMTP: bool = config("USE_SMTP", default=True, cast=bool)
     
     # 🌐 CORS
-    ALLOWED_HOSTS: List[str] = ["*"]
+    ALLOWED_HOSTS: List[str] = [
+        "*",
+        "https://app-gallera-production.up.railway.app",
+        "https://app-gallera-staging.up.railway.app",
+        "http://localhost:3000",
+        "http://localhost:8080"
+    ]
     
     # 🔄 Environment
     ENVIRONMENT: str = config("ENVIRONMENT", default="local")
