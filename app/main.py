@@ -168,12 +168,18 @@ app = FastAPI(
     }
 )
 
-# 🌐 CORS
+# 🌐 CORS - Configuración explícita para producción
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_HOSTS,
+    allow_origins=[
+        "https://app-gallera-production.up.railway.app",
+        "https://app-gallera-staging.up.railway.app", 
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "*"  # Fallback para desarrollo
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -372,6 +378,7 @@ async def root():
         "status": "✅ ACTIVO",
         "version": "1.0.0-PROFESIONAL",
         "security": "🔒 JWT Protegido",
+        "cors": "🌐 Configurado para app-gallera-production.up.railway.app",
         "features": {
             "genealogia_recursiva": "🧬 Técnica Infinita de Genealogía",
             "cloudinary_avanzado": "📸 Sistema de Fotos Optimizado",
@@ -392,7 +399,8 @@ async def root():
             "transmisiones": "/api/v1/transmisiones" if transmisiones_router else "NO DISPONIBLE",
             "test_db": "/test-db",
             "test_cloudinary": "/test-cloudinary",
-            "test_full": "/test-full"
+            "test_full": "/test-full",
+            "test_cors": "/test-cors"
         },
         "tecnica_epica": {
             "descripcion": "Sistema genealógico recursivo infinito",
@@ -402,6 +410,19 @@ async def root():
             "performance": "Consultas optimizadas con índices"
         },
         "creado_por": "Equipo de Casto de Gallos 🐓"
+    }
+
+@app.get("/test-cors")
+async def test_cors():
+    """🧪 Test CORS Headers"""
+    return {
+        "cors_test": "✅ Si puedes ver esto, CORS está funcionando",
+        "timestamp": "2025-11-14",
+        "allowed_origins": [
+            "https://app-gallera-production.up.railway.app",
+            "https://app-gallera-staging.up.railway.app"
+        ],
+        "frontend_url": "https://app-gallera-production.up.railway.app"
     }
 
 @app.get("/health")
