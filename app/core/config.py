@@ -24,10 +24,19 @@ class Settings:
     IMAGEKIT_PUBLIC_KEY: str = config("IMAGEKIT_PUBLIC_KEY", default="public_m7rawfzMCD/O2+1pNfMA8aHqCkk=")
     IMAGEKIT_URL_ENDPOINT: str = config("IMAGEKIT_URL_ENDPOINT", default="https://ik.imagekit.io/3y7rfi7jj")
 
-    # 📧 SendGrid Email Service
+    # 📧 SendGrid Email Service (Anterior - será reemplazado)
     SENDGRID_API_KEY: str = config("SENDGRID_API_KEY", default="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")
     SENDGRID_FROM_EMAIL: str = config("SENDGRID_FROM_EMAIL", default="alancairampoma@gmail.com")
     SENDGRID_FROM_NAME: str = config("SENDGRID_FROM_NAME", default="Casta de Gallos")
+    
+    # 📧 SMTP Email Service (Nuevo - servidor propio)
+    SMTP_HOST: str = config("SMTP_HOST", default="mail.jsinnovatech.com")
+    SMTP_PORT: int = config("SMTP_PORT", default=587, cast=int)
+    SMTP_USER: str = config("SMTP_USER", default="sistemas@jsinnovatech.com")
+    SMTP_PASSWORD: str = config("SMTP_PASSWORD", default="Joa420188*")
+    SMTP_FROM_EMAIL: str = config("SMTP_FROM_EMAIL", default="sistemas@jsinnovatech.com")
+    SMTP_FROM_NAME: str = config("SMTP_FROM_NAME", default="Sistemas Gallistico")
+    USE_SMTP: bool = config("USE_SMTP", default=True, cast=bool)
     
     # 🌐 CORS
     ALLOWED_HOSTS: List[str] = ["*"]

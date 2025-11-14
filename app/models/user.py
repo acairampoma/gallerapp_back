@@ -15,6 +15,11 @@ class User(Base):
     last_login = Column(DateTime)
     refresh_token = Column(String(500))
     
+    # 📧 Campos para verificación de email
+    email_verification_code = Column(String(6), nullable=True)
+    email_verification_expires = Column(DateTime, nullable=True)
+    email_verification_attempts = Column(Integer, default=0)
+    
     # Campos para admin
     es_admin = Column(Boolean, default=False)
     recibe_notificaciones_admin = Column(Boolean, default=False)

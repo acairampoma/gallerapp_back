@@ -7,7 +7,10 @@ from app.schemas.auth import (
     UserResponse, MessageResponse, LogoutResponse,
     ForgotPasswordRequest, VerifyResetCodeRequest, 
     ResetPasswordRequest, PasswordResetResponse,
-    DeleteAccountRequest, DeleteAccountResponse
+    DeleteAccountRequest, DeleteAccountResponse,
+    # 📧 Nuevos schemas de verificación
+    VerifyEmailRequest, VerifyEmailResponse,
+    ResendVerificationRequest, VerificationStatusResponse
 )
 from app.schemas.profile import ProfileResponse
 from app.services.auth_service import AuthService
@@ -17,20 +20,39 @@ from app.core.exceptions import AuthenticationException
 from app.models.user import User
 from app.models.fcm_token import FCMToken
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 router = APIRouter()
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    """🔐 Registrar nuevo usuario con respuesta mejorada"""
+    """🔐 Registrar nuevo usuario con verificación de email"""
     
-    # Registrar usuario con perfil
+    # Registrar usuario con perfil (sin verificar email)
     user = AuthService.register_user(db, user_data)
+    
+    # Generar código de verificación
+    from app.services.email_service import email_service
+    verification_code = email_service.generate_verification_code()
+    expires_at = datetime.utcnow() + timedelta(minutes=15)
+    
+    # Actualizar usuario con código de verificación
+    user.email_verification_code = verification_code
+    user.email_verification_expires = expires_at
+    user.is_verified = False  # Asegurar que no esté verificado
+    db.commit()
     
     # Obtener perfil creado
     profile = AuthService.get_user_profile(db, user.id)
+    
+    # Enviar email de verificación
+    user_name = profile.nombre_completo if profile else user.email.split('@')[0]
+    email_result = await email_service.send_verification_email(
+        email=user.email,
+        name=user_name,
+        verification_code=verification_code
+    )
     
     # Convertir a response schemas
     user_response = UserResponse.from_orm(user)
@@ -39,21 +61,28 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     return RegisterResponse(
         user=user_response,
         profile=profile_response,
-        message=f"Usuario {user.email} registrado exitosamente",
-        login_credentials={
-            "email": user.email,
-            "suggested_login": True,
-            "message": "Credenciales listas para login automático"
-        },
-        redirect_to="login"
+        message=f"Usuario {user.email} registrado. Revisa tu email para verificar tu cuenta.",
+        verification_required=True,
+        next_step="verify_email"
     )
 
 @router.post("/login", response_model=LoginResponse)
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    """🔐 Login de usuario con respuesta mejorada"""
+    """🔐 Login de usuario con verificación de email"""
     
     # Autenticar usuario
     user = AuthService.authenticate_user(db, user_data.email, user_data.password)
+    
+    # Verificar si el email está verificado
+    if not user.is_verified:
+        return LoginResponse(
+            user=UserResponse.from_orm(user),
+            profile=None,
+            token=None,
+            message="Debes verificar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.",
+            login_success=False,
+            redirect_to="verify_email"
+        )
     
     # Crear tokens JWT
     access_token = SecurityService.create_access_token(data={"sub": str(user.id)})
@@ -402,3 +431,219 @@ async def get_my_fcm_tokens(
         ],
         "total_tokens": len(tokens)
     }
+
+# 📧 ENDPOINTS DE VERIFICACIÓN DE EMAIL
+
+@router.post("/verify-email", response_model=VerifyEmailResponse)
+async def verify_email(
+    request: VerifyEmailRequest,
+    db: Session = Depends(get_db)
+):
+    """📧 Verificar código de email de registro"""
+    try:
+        # Buscar usuario por email
+        user = db.query(User).filter(User.email == request.email).first()
+        if not user:
+            return VerifyEmailResponse(
+                success=False,
+                message="Email no encontrado",
+                verified=False,
+                next_step="register"
+            )
+        
+        # Verificar si ya está verificado
+        if user.is_verified:
+            return VerifyEmailResponse(
+                success=True,
+                message="Email ya verificado anteriormente",
+                verified=True,
+                next_step="login"
+            )
+        
+        # Verificar código y expiración
+        if (user.email_verification_code != request.code or 
+            user.email_verification_expires < datetime.utcnow()):
+            
+            # Incrementar intentos fallidos
+            user.email_verification_attempts += 1
+            
+            # Bloquear después de 5 intentos
+            if user.email_verification_attempts >= 5:
+                user.email_verification_code = None
+                user.email_verification_expires = None
+                db.commit()
+                return VerifyEmailResponse(
+                    success=False,
+                    message="Demasiados intentos fallidos. Solicita un nuevo código.",
+                    verified=False,
+                    next_step="resend"
+                )
+            
+            db.commit()
+            return VerifyEmailResponse(
+                success=False,
+                message=f"Código inválido o expirado. Intento {user.email_verification_attempts}/5",
+                verified=False,
+                next_step="verify"
+            )
+        
+        # ✅ Verificación exitosa
+        user.is_verified = True
+        user.email_verification_code = None
+        user.email_verification_expires = None
+        user.email_verification_attempts = 0
+        db.commit()
+        
+        logger.info(f"✅ Email verificado exitosamente: {request.email}")
+        
+        return VerifyEmailResponse(
+            success=True,
+            message="¡Email verificado exitosamente! Ya puedes iniciar sesión.",
+            verified=True,
+            next_step="login",
+            user_data={
+                "email": user.email,
+                "is_verified": user.is_verified
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error verificando email: {e}")
+        return VerifyEmailResponse(
+            success=False,
+            message="Error verificando email",
+            verified=False,
+            next_step="verify"
+        )
+
+@router.post("/resend-verification", response_model=MessageResponse)
+async def resend_verification_email(
+    request: ResendVerificationRequest,
+    db: Session = Depends(get_db)
+):
+    """📧 Reenviar código de verificación de email"""
+    try:
+        # Buscar usuario por email
+        user = db.query(User).filter(User.email == request.email).first()
+        if not user:
+            return MessageResponse(
+                success=False,
+                message="Email no encontrado"
+            )
+        
+        # Verificar si ya está verificado
+        if user.is_verified:
+            return MessageResponse(
+                success=True,
+                message="Este email ya está verificado"
+            )
+        
+        # Verificar si puede reenviar (esperar 2 minutos entre intentos)
+        if (user.email_verification_expires and 
+            user.email_verification_expires > datetime.utcnow() and
+            user.email_verification_attempts < 3):
+            
+            time_until_resend = (user.email_verification_expires - datetime.utcnow()).seconds
+            if time_until_resend > 120:  # Más de 2 minutos
+                return MessageResponse(
+                    success=False,
+                    message=f"Debes esperar {time_until_resend // 60} minutos para reenviar"
+                )
+        
+        # Generar nuevo código
+        from app.services.email_service import email_service
+        new_code = email_service.generate_verification_code()
+        expires_at = datetime.utcnow() + timedelta(minutes=15)
+        
+        # Actualizar usuario
+        user.email_verification_code = new_code
+        user.email_verification_expires = expires_at
+        user.email_verification_attempts = 0
+        db.commit()
+        
+        # Obtener nombre del usuario
+        profile = AuthService.get_user_profile(db, user.id)
+        user_name = profile.nombre_completo if profile else user.email.split('@')[0]
+        
+        # Enviar email
+        email_result = await email_service.send_verification_email(
+            email=user.email,
+            name=user_name,
+            verification_code=new_code
+        )
+        
+        if email_result.get("success"):
+            logger.info(f"✅ Código de verificación reenviado a {request.email}")
+            return MessageResponse(
+                success=True,
+                message="Nuevo código de verificación enviado a tu email"
+            )
+        else:
+            logger.error(f"❌ Error enviando email: {email_result.get('message')}")
+            return MessageResponse(
+                success=False,
+                message="Error enviando email. Intenta nuevamente."
+            )
+        
+    except Exception as e:
+        logger.error(f"❌ Error reenviando verificación: {e}")
+        return MessageResponse(
+            success=False,
+            message="Error procesando solicitud"
+        )
+
+@router.get("/verification-status/{email}", response_model=VerificationStatusResponse)
+async def get_verification_status(
+    email: str,
+    db: Session = Depends(get_db)
+):
+    """📧 Verificar estado de verificación de email"""
+    try:
+        # Buscar usuario por email
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            return VerificationStatusResponse(
+                email=email,
+                is_verified=False,
+                verification_sent=False,
+                can_resend=False,
+                message="Email no encontrado"
+            )
+        
+        # Estado actual
+        if user.is_verified:
+            return VerificationStatusResponse(
+                email=email,
+                is_verified=True,
+                verification_sent=False,
+                can_resend=False,
+                message="Email ya verificado"
+            )
+        
+        # Verificar si tiene código pendiente
+        has_pending_code = (
+            user.email_verification_code and 
+            user.email_verification_expires and 
+            user.email_verification_expires > datetime.utcnow()
+        )
+        
+        # Puede reenviar si no tiene código o está expirado
+        can_resend = not has_pending_code or user.email_verification_attempts < 3
+        
+        return VerificationStatusResponse(
+            email=email,
+            is_verified=False,
+            verification_sent=has_pending_code,
+            can_resend=can_resend,
+            message="Email pendiente de verificación" if has_pending_code else "Esperando envío de código"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error verificando estado: {e}")
+        return VerificationStatusResponse(
+            email=email,
+            is_verified=False,
+            verification_sent=False,
+            can_resend=False,
+            message="Error verificando estado"
+        )

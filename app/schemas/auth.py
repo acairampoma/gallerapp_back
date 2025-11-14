@@ -100,7 +100,7 @@ class LoginResponse(BaseModel):
     """Schema para respuesta de login exitoso"""
     user: UserResponse
     profile: Optional[ProfileResponse] = None
-    token: Token
+    token: Optional[Token] = None
     message: str = "Login exitoso"
     login_success: bool = True
     redirect_to: str = "home"
@@ -110,8 +110,8 @@ class RegisterResponse(BaseModel):
     user: UserResponse
     profile: Optional[ProfileResponse] = None
     message: str = "Usuario registrado exitosamente"
-    login_credentials: Optional[Dict[str, Any]] = None
-    redirect_to: str = "login"
+    verification_required: bool = False
+    next_step: str = "login"  # "login" o "verify_email"
 
 class MessageResponse(BaseModel):
     """Schema para respuestas simples"""
@@ -169,3 +169,35 @@ class DeleteAccountResponse(BaseModel):
     success: bool = True
     account_deleted: bool = True
     redirect_to: str = "login"
+
+# 📧 ESQUEMAS PARA VERIFICACIÓN DE EMAIL
+class VerifyEmailRequest(BaseModel):
+    """Schema para verificar código de email"""
+    email: EmailStr
+    code: str
+    
+    @validator('code')
+    def validate_code(cls, v):
+        if not v.isdigit() or len(v) != 6:
+            raise ValueError('El código debe ser de 6 dígitos numéricos')
+        return v
+
+class VerifyEmailResponse(BaseModel):
+    """Schema para respuesta de verificación de email"""
+    success: bool
+    message: str
+    verified: bool
+    next_step: str  # "login" o "register"
+    user_data: Optional[Dict[str, Any]] = None
+
+class ResendVerificationRequest(BaseModel):
+    """Schema para reenviar código de verificación"""
+    email: EmailStr
+
+class VerificationStatusResponse(BaseModel):
+    """Schema para verificar estado de verificación"""
+    email: str
+    is_verified: bool
+    verification_sent: bool
+    can_resend: bool
+    message: str
