@@ -25,6 +25,30 @@ import logging
 
 router = APIRouter()
 
+@router.post("/register-simple")
+async def register_simple(user_data: UserRegister, db: Session = Depends(get_db)):
+    """🧪 Registro simple sin email para debug"""
+    try:
+        # Solo registrar usuario sin email
+        user = AuthService.register_user(db, user_data)
+        profile = AuthService.get_user_profile(db, user.id)
+        
+        user_response = UserResponse.from_orm(user)
+        profile_response = ProfileResponse.from_orm(profile) if profile else None
+        
+        return {
+            "success": True,
+            "message": "Registro simple exitoso",
+            "user": user_response.dict(),
+            "profile": profile_response.dict() if profile else None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Error en registro simple"
+        }
+
 @router.post("/register-debug")
 async def register_debug(user_data: dict):
     """🧪 Debug endpoint para registro"""
@@ -46,18 +70,19 @@ async def register_debug(user_data: dict):
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     """🔐 Registrar nuevo usuario con verificación de email"""
     
-    # Registrar usuario con perfil (sin verificar email)
+    # Registrar usuario con perfil
     user = AuthService.register_user(db, user_data)
+    db.commit()
+    db.refresh(user)
     
-    # Generar código de verificación
+    # Generar código de verificación y actualizar usuario
     from app.services.email_service import email_service
     verification_code = email_service.generate_verification_code()
     expires_at = datetime.utcnow() + timedelta(minutes=15)
     
-    # Actualizar usuario con código de verificación
     user.email_verification_code = verification_code
     user.email_verification_expires = expires_at
-    user.is_verified = False  # Asegurar que no esté verificado
+    user.is_verified = False
     db.commit()
     
     # Obtener perfil creado
