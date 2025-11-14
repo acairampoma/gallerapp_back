@@ -25,6 +25,23 @@ import logging
 
 router = APIRouter()
 
+@router.post("/register-debug")
+async def register_debug(user_data: dict):
+    """🧪 Debug endpoint para registro"""
+    try:
+        return {
+            "status": "✅ Endpoint recibiendo datos",
+            "data_received": user_data,
+            "email_service_available": True,
+            "message": "Si ves esto, el problema no es CORS"
+        }
+    except Exception as e:
+        return {
+            "status": "❌ Error en debug",
+            "error": str(e),
+            "data": user_data
+        }
+
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     """🔐 Registrar nuevo usuario con verificación de email"""
@@ -48,11 +65,17 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     
     # Enviar email de verificación
     user_name = profile.nombre_completo if profile else user.email.split('@')[0]
-    email_result = await email_service.send_verification_email(
-        email=user.email,
-        name=user_name,
-        verification_code=verification_code
-    )
+    try:
+        email_result = await email_service.send_verification_email(
+            email=user.email,
+            name=user_name,
+            verification_code=verification_code
+        )
+        logger.info(f"✅ Email de verificación enviado a {user.email}")
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de verificación: {e}")
+        # No fallar el registro si el email no se envía
+        email_result = {"success": False, "message": str(e)}
     
     # Convertir a response schemas
     user_response = UserResponse.from_orm(user)
