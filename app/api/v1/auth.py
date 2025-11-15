@@ -250,6 +250,23 @@ async def protected_test(token_data: dict = Depends(verify_token_dependency)):
 
 # 🔐 ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA
 
+@router.post("/forgot-password-debug")
+async def forgot_password_debug(request: dict):
+    """🧪 Debug endpoint para forgot-password"""
+    try:
+        return {
+            "status": "✅ Endpoint recibiendo datos",
+            "data_received": request,
+            "email_type": type(request.get("email")),
+            "message": "Datos recibidos correctamente"
+        }
+    except Exception as e:
+        return {
+            "status": "❌ Error en debug",
+            "error": str(e),
+            "data": request
+        }
+
 @router.post("/forgot-password", response_model=PasswordResetResponse)
 async def forgot_password(
     request: ForgotPasswordRequest, 
