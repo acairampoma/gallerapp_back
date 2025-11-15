@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Body
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.auth import (
@@ -251,13 +251,13 @@ async def protected_test(token_data: dict = Depends(verify_token_dependency)):
 # 🔐 ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA
 
 @router.post("/forgot-password-debug")
-async def forgot_password_debug(request: dict):
+async def forgot_password_debug(request: dict = Body(...)):
     """🧪 Debug endpoint para forgot-password"""
     try:
         return {
             "status": "✅ Endpoint recibiendo datos",
             "data_received": request,
-            "email_type": type(request.get("email")),
+            "email_type": type(request.get("email")) if request.get("email") else None,
             "message": "Datos recibidos correctamente"
         }
     except Exception as e:
