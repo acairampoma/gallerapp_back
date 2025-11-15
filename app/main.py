@@ -176,6 +176,7 @@ app.add_middleware(
         "https://app-gallera-staging.up.railway.app", 
         "http://localhost:3000",
         "http://localhost:8080",
+        "http://localhost:57269",  # Puerto del frontend Flutter
         "*"  # Fallback para desarrollo
     ],
     allow_credentials=True,
