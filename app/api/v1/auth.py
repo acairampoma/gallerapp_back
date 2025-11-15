@@ -273,7 +273,7 @@ async def forgot_password(
     db: Session = Depends(get_db)
 ):
     """🔐 Solicitar recuperación de contraseña"""
-    success = AuthService.request_password_reset(db, request.email)
+    success = await AuthService.request_password_reset(db, request.email)
     
     return PasswordResetResponse(
         message="Si el email existe, recibirás un código de recuperación",

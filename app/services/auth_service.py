@@ -126,7 +126,7 @@ class AuthService:
         return ''.join(random.choices(string.digits, k=6))
     
     @staticmethod
-    def request_password_reset(db: Session, email: str) -> bool:
+    async def request_password_reset(db: Session, email: str) -> bool:
         """Solicitar recuperación de contraseña"""
         
         # Buscar usuario por email
@@ -160,17 +160,17 @@ class AuthService:
         profile = AuthService.get_user_profile(db, user.id)
         user_name = profile.nombre_completo if profile else None
         
-        # Enviar email con el código
-        email_sent = email_service.send_password_reset_code(
-            to_email=user.email,
-            code=code,
-            user_name=user_name
-        )
-        
-        if email_sent:
-            print(f"✅ Email de recuperación enviado a {email}")
-        else:
-            print(f"❌ Error enviando email a {email}, pero código generado: {code}")
+        # Enviar email con el código (usando await porque es async)
+        try:
+            email_sent = await email_service.send_password_reset_code(
+                email=user.email,
+                name=user_name,
+                reset_code=code
+            )
+            print(f"✅ Email de recuperación enviado a {user.email}")
+        except Exception as e:
+            print(f"❌ Error enviando email de recuperación: {e}")
+            # No fallar el proceso si el email no se envía
         
         return True
     
