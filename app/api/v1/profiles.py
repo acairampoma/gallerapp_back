@@ -5,18 +5,12 @@ from app.schemas.profile import ProfileResponse, ProfileUpdate, AvatarUpload, Pr
 from app.schemas.auth import MessageResponse
 from app.services.profile_service import ProfileService
 from app.core.security import get_current_user_id
-import cloudinary
-import cloudinary.uploader
+from app.services.imagekit_service import imagekit_service
 from app.core.config import settings
+import logging
 
 router = APIRouter()
-
-# Configurar Cloudinary
-cloudinary.config(
-    cloud_name=settings.CLOUDINARY_CLOUD_NAME,
-    api_key=settings.CLOUDINARY_API_KEY,
-    api_secret=settings.CLOUDINARY_API_SECRET
-)
+logger = logging.getLogger(__name__)
 
 @router.get("/me", response_model=ProfileResponse)
 async def get_my_profile(
@@ -48,24 +42,35 @@ async def upload_avatar(
     """📸 Subir avatar del usuario"""
     
     try:
-        # Subir a Cloudinary con transformación automática
-        upload_result = cloudinary.uploader.upload(
-            file.file,
+        logger.info(f"📸 Usuario {current_user_id} subiendo avatar")
+        
+        # Leer contenido del archivo
+        file_content = await file.read()
+        
+        # Subir a ImageKit con transformaciones (200x200, crop force, webp)
+        upload_result = imagekit_service.upload_image_with_transformations(
+            file_content=file_content,
+            file_name=f"avatar_user_{current_user_id}_{file.filename}",
             folder="galloapp/avatars",
-            public_id=f"avatar_user_{current_user_id}",
-            overwrite=True,
-            transformation=[
-                {"width": 200, "height": 200, "crop": "fill", "quality": "auto", "format": "webp"}
-            ]
+            width=200,
+            height=200,
+            crop="force",
+            quality=90,
+            format="webp"
         )
         
+        if not upload_result:
+            raise Exception("ImageKit no retornó resultado de upload")
+        
         # Actualizar avatar en perfil
-        avatar_url = upload_result["secure_url"]
+        avatar_url = upload_result["url"]
         profile = ProfileService.update_avatar(db, current_user_id, avatar_url)
         
+        logger.info(f"✅ Avatar actualizado para usuario {current_user_id}")
         return ProfileResponse.from_orm(profile)
         
     except Exception as e:
+        logger.error(f"❌ Error subiendo avatar: {e}")
         from app.core.exceptions import ValidationException
         raise ValidationException(f"Error subiendo avatar: {str(e)}")
 

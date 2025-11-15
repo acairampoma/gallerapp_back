@@ -35,8 +35,9 @@ class PagoPendiente(Base):
     
     # QR y comprobantes
     qr_data = Column(Text)  # Data del QR generado
-    qr_url = Column(Text)   # URL imagen QR en Cloudinary
+    qr_url = Column(Text)   # URL imagen QR en ImageKit
     comprobante_url = Column(Text)  # Screenshot del pago
+    comprobante_file_id = Column(String(255))  # ImageKit file_id para eliminar comprobante
     
     # Estados y verificación
     estado = Column(String(20), default=EstadoPago.PENDIENTE, index=True)

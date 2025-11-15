@@ -5,7 +5,7 @@ from sqlalchemy import func, extract
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from typing import List, Optional
 from datetime import datetime, timedelta
-import cloudinary.uploader
+from app.services.storage import storage_manager
 import logging
 import time
 from functools import wraps
@@ -353,19 +353,23 @@ async def create_pelea(
             duracion_minutos=duracion_minutos
         )
     
-        # Subida de video simplificada (opcional)
+        # Subida de video a ImageKit (opcional)
         if video and hasattr(video, 'filename') and video.filename:
             try:
                 video_content = await video.read()
-                upload_result = cloudinary.uploader.upload(
-                    video_content,
-                    resource_type="video",
-                    folder=f"galloapp/peleas/user_{current_user_id}"
+                upload_result = storage_manager.upload_video(
+                    file_content=video_content,
+                    file_name=f"pelea_{db_pelea.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{video.filename}",
+                    folder=f"peleas/user_{current_user_id}"
                 )
-                db_pelea.video_url = upload_result.get('secure_url')
-                logger.info(f"Video subido para pelea", extra={"user_id": current_user_id})
+                if upload_result:
+                    db_pelea.video_url = upload_result.url
+                    db_pelea.file_id = upload_result.file_id
+                    logger.info(f"✅ Video subido a {storage_manager.provider_name} para pelea {db_pelea.id}")
+                else:
+                    logger.warning(f"⚠️ ImageKit no retornó resultado")
             except Exception as e:
-                logger.warning(f"Error subiendo video: {str(e)}")
+                logger.warning(f"❌ Error subiendo video: {str(e)}")
                 # Continuar sin video
         
         # Guardar en BD
@@ -494,20 +498,26 @@ async def update_pelea(
         if duracion_minutos is not None:
             pelea.duracion_minutos = duracion_minutos
     
-        # Si hay nuevo video, actualizarlo
+        # Si hay nuevo video, actualizarlo en ImageKit
         if video and video.filename:
             try:
+                # Eliminar video anterior si existe
+                if pelea.file_id:
+                    logger.info(f"🗑️ Eliminando video anterior: {pelea.file_id}")
+                    storage_manager.delete_file(pelea.file_id)
+                
                 video_content = await video.read()
-                upload_result = cloudinary.uploader.upload(
-                    video_content,
-                    resource_type="video",
-                    folder=f"galloapp/peleas/user_{current_user_id}",
-                    public_id=f"pelea_{pelea.gallo_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    overwrite=True
+                upload_result = storage_manager.upload_video(
+                    file_content=video_content,
+                    file_name=f"pelea_{pelea_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{video.filename}",
+                    folder=f"peleas/user_{current_user_id}"
                 )
-                pelea.video_url = upload_result.get('secure_url')
+                if upload_result:
+                    pelea.video_url = upload_result.url
+                    pelea.file_id = upload_result.file_id
+                    logger.info(f"✅ Video actualizado en {storage_manager.provider_name} para pelea {pelea_id}")
             except Exception as e:
-                logger.warning(f"Error actualizando video para pelea {pelea_id}: {str(e)}")
+                logger.warning(f"❌ Error actualizando video para pelea {pelea_id}: {str(e)}")
         
         pelea.updated_at = datetime.utcnow()
         db.commit()
@@ -577,15 +587,16 @@ async def delete_pelea(
                 detail=f"Pelea con ID {pelea_id} no encontrada o no pertenece al usuario"
             )
     
-        # Si hay video, intentar eliminarlo de Cloudinary
-        if pelea.video_url:
+        # Si hay video, eliminarlo del storage
+        if pelea.file_id:
             try:
-                # Extraer public_id del URL
-                parts = pelea.video_url.split('/')
-                public_id = '/'.join(parts[-2:]).split('.')[0]
-                cloudinary.uploader.destroy(public_id, resource_type="video")
+                success = storage_manager.delete_file(pelea.file_id)
+                if success:
+                    logger.info(f"✅ Video eliminado de {storage_manager.provider_name}: {pelea.file_id}")
+                else:
+                    logger.warning(f"⚠️ No se pudo eliminar video de {storage_manager.provider_name}")
             except Exception as e:
-                logger.warning(f"Error eliminando video de Cloudinary para pelea {pelea_id}: {str(e)}")
+                logger.warning(f"❌ Error eliminando video: {str(e)}")
         
         db.delete(pelea)
         db.commit()

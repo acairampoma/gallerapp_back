@@ -23,6 +23,10 @@ class Settings:
     IMAGEKIT_PRIVATE_KEY: str = config("IMAGEKIT_PRIVATE_KEY", default="private_juJdHhsZIjOMwacjNq6/94YqfYo=")
     IMAGEKIT_PUBLIC_KEY: str = config("IMAGEKIT_PUBLIC_KEY", default="public_m7rawfzMCD/O2+1pNfMA8aHqCkk=")
     IMAGEKIT_URL_ENDPOINT: str = config("IMAGEKIT_URL_ENDPOINT", default="https://ik.imagekit.io/3y7rfi7jj")
+    
+    # 🎯 Storage Provider - Cambiar aquí para usar otro proveedor
+    # Opciones: "imagekit", "cloudinary", "s3", "local"
+    STORAGE_PROVIDER: str = config("STORAGE_PROVIDER", default="imagekit")
 
     # 📧 SendGrid Email Service (Anterior - será reemplazado)
     SENDGRID_API_KEY: str = config("SENDGRID_API_KEY", default="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")

@@ -10,7 +10,8 @@ import json
 
 from app.database import get_db
 from app.core.security import get_current_user_id
-from app.services.cloudinary_service import CloudinaryService
+from app.services.multi_image_service import multi_image_service
+from app.services.storage import storage_manager
 from app.services.pdf_service_reportlab import pdf_service_reportlab
 
 router = APIRouter()
@@ -545,31 +546,36 @@ async def create_gallo_con_pedigri(
             if foto_principal:
                 print(f"📷 Subiendo foto del parámetro para gallo {gallo_principal_id}")
                 
-                # Usar CloudinaryService con el UploadFile del parámetro
-                cloudinary_result = await CloudinaryService.upload_gallo_photo(
-                    file=foto_principal,  # ← PARÁMETRO DEL FORM
-                    gallo_codigo=codigo_final,
-                    photo_type="principal",
-                    user_id=current_user_id
+                # Usar multi_image_service (MODERNO - 2025)
+                folder = f"gallos/user_{current_user_id}/gallo_{gallo_principal_id}"
+                file_name = f"gallo_{codigo_final}_principal_{foto_principal.filename}"
+                
+                upload_result = await multi_image_service.upload_single_image(
+                    file=foto_principal,
+                    folder=folder,
+                    file_name=file_name,
+                    optimize=True
                 )
                 
-                foto_url = cloudinary_result['secure_url']
-                cloudinary_url = cloudinary_result.get('urls', {}).get('optimized', foto_url)
-                
-                # Actualizar gallo principal con URL de foto
-                update_foto = text("""
-                    UPDATE gallos 
-                    SET foto_principal_url = :foto_url, url_foto_cloudinary = :cloudinary_url
-                    WHERE id = :id
-                """)
-                db.execute(update_foto, {
-                    "foto_url": foto_url,
-                    "cloudinary_url": cloudinary_url,
-                    "id": gallo_principal_id
-                })
-                db.commit()
-                
-                print(f"✅ Foto subida exitosamente: {cloudinary_url}")
+                if upload_result:
+                    foto_url = upload_result['url']
+                    
+                    # Actualizar gallo principal con URL de foto
+                    update_foto = text("""
+                        UPDATE gallos 
+                        SET foto_principal_url = :foto_url, url_foto_cloudinary = :cloudinary_url
+                        WHERE id = :id
+                    """)
+                    db.execute(update_foto, {
+                        "foto_url": foto_url,
+                        "cloudinary_url": foto_url,  # Mismo URL
+                        "id": gallo_principal_id
+                    })
+                    db.commit()
+                    
+                    print(f"✅ Foto subida exitosamente: {foto_url}")
+                else:
+                    print(f"⚠️ Error subiendo foto")
             else:
                 print(f"⚠️ No se proporcionó foto_principal en el parámetro")
                 
@@ -602,36 +608,37 @@ async def create_gallo_con_pedigri(
                 }
                 fotos_json.append(foto_principal_obj)
 
-            # Procesar fotos 2, 3 y 4
+            # Procesar fotos 2, 3 y 4 (MODERNO - 2025)
             for i, (param_name, foto_file) in enumerate(fotos_params):
                 if foto_file and foto_file.filename and foto_file.size > 0:
                     try:
                         print(f"📸 Subiendo {param_name} para gallo {gallo_principal_id}")
 
-                        cloudinary_result = await CloudinaryService.upload_gallo_photo(
+                        folder = f"gallos/user_{current_user_id}/gallo_{gallo_principal_id}"
+                        file_name = f"gallo_{codigo_final}_foto_{i+2}_{foto_file.filename}"
+                        
+                        upload_result = await multi_image_service.upload_single_image(
                             file=foto_file,
-                            gallo_codigo=codigo_final,
-                            photo_type=f"foto_{i+2}",
-                            user_id=current_user_id
+                            folder=folder,
+                            file_name=file_name,
+                            optimize=True
                         )
 
-                        foto_adicional_url = cloudinary_result['secure_url']
-                        foto_adicional_optimizada = cloudinary_result.get('urls', {}).get('optimized', foto_adicional_url)
+                        if upload_result:
+                            foto_obj = {
+                                "url": upload_result['url'],
+                                "url_optimized": upload_result['url'],
+                                "orden": i + 2,
+                                "es_principal": False,
+                                "descripcion": f"Foto {i + 2}",
+                                "cloudinary_public_id": upload_result['file_id'],
+                                "uploaded_at": datetime.now().isoformat(),
+                                "file_size": upload_result.get('size', foto_file.size),
+                                "filename_original": foto_file.filename
+                            }
 
-                        foto_obj = {
-                            "url": foto_adicional_url,
-                            "url_optimized": foto_adicional_optimizada,
-                            "orden": i + 2,
-                            "es_principal": False,
-                            "descripcion": f"Foto {i + 2}",
-                            "cloudinary_public_id": cloudinary_result.get('public_id'),
-                            "uploaded_at": datetime.now().isoformat(),
-                            "file_size": foto_file.size,
-                            "filename_original": foto_file.filename
-                        }
-
-                        fotos_json.append(foto_obj)
-                        fotos_adicionales_subidas += 1
+                            fotos_json.append(foto_obj)
+                            fotos_adicionales_subidas += 1
                         print(f"✅ {param_name} subida exitosamente")
 
                     except Exception as foto_adicional_error:
@@ -1107,29 +1114,33 @@ async def update_gallo_con_expansion(
             try:
                 print(f"📷 Subiendo nueva foto para gallo {gallo_id}")
                 
-                cloudinary_result = await CloudinaryService.upload_gallo_photo(
+                # Usar multi_image_service (MODERNO - 2025)
+                folder = f"gallos/user_{current_user_id}/gallo_{gallo_id}"
+                file_name = f"gallo_{codigo_final}_principal_{foto_principal.filename}"
+                
+                upload_result = await multi_image_service.upload_single_image(
                     file=foto_principal,
-                    gallo_codigo=codigo_final,
-                    photo_type="principal",
-                    user_id=current_user_id
+                    folder=folder,
+                    file_name=file_name,
+                    optimize=True
                 )
                 
-                foto_url = cloudinary_result['secure_url']
-                cloudinary_url = cloudinary_result.get('urls', {}).get('optimized', foto_url)
-                
-                # ACTUALIZAR URLs DE FOTO
-                update_foto = text("""
-                    UPDATE gallos 
-                    SET foto_principal_url = :foto_url, url_foto_cloudinary = :cloudinary_url
-                    WHERE id = :id
-                """)
-                db.execute(update_foto, {
-                    "foto_url": foto_url,
-                    "cloudinary_url": cloudinary_url,
-                    "id": gallo_id
-                })
-                
-                print(f"✅ Foto actualizada exitosamente: {cloudinary_url}")
+                if upload_result:
+                    foto_url = upload_result['url']
+                    
+                    # ACTUALIZAR URLs DE FOTO
+                    update_foto = text("""
+                        UPDATE gallos 
+                        SET foto_principal_url = :foto_url, url_foto_cloudinary = :cloudinary_url
+                        WHERE id = :id
+                    """)
+                    db.execute(update_foto, {
+                        "foto_url": foto_url,
+                        "cloudinary_url": foto_url,
+                        "id": gallo_id
+                    })
+                    
+                    print(f"✅ Foto actualizada exitosamente: {foto_url}")
             except Exception as foto_error:
                 print(f"❌ Error subiendo foto: {foto_error}")
                 # No fallar el update por error de foto
@@ -1231,38 +1242,39 @@ async def actualizar_fotos_multiples_gallo(
                 try:
                     print(f"📸 Subiendo foto {i+1}: {foto.filename}")
 
-                    # Subir a Cloudinary
-                    cloudinary_result = await CloudinaryService.upload_gallo_photo(
+                    # Subir con multi_image_service (MODERNO - 2025)
+                    folder = f"gallos/user_{current_user_id}/gallo_{gallo_id}"
+                    file_name = f"gallo_{gallo_result.codigo_identificacion}_foto_{i+1}_{foto.filename}"
+                    
+                    upload_result = await multi_image_service.upload_single_image(
                         file=foto,
-                        gallo_codigo=gallo_result.codigo_identificacion,
-                        photo_type=f"foto_{i+1}",
-                        user_id=current_user_id
+                        folder=folder,
+                        file_name=file_name,
+                        optimize=True
                     )
 
-                    foto_url = cloudinary_result['secure_url']
-                    foto_optimizada = cloudinary_result.get('urls', {}).get('optimized', foto_url)
+                    if upload_result:
+                        # Construir objeto de foto para JSON
+                        foto_obj = {
+                            "url": upload_result['url'],
+                            "url_optimized": upload_result['url'],
+                            "orden": i + 1,
+                            "es_principal": i == 0,  # Primera foto es principal
+                            "descripcion": f"Foto {i+1}",
+                            "cloudinary_public_id": upload_result['file_id'],
+                            "uploaded_at": datetime.now().isoformat(),
+                            "file_size": upload_result.get('size', foto.size),
+                            "filename_original": foto.filename
+                        }
 
-                    # Construir objeto de foto para JSON
-                    foto_obj = {
-                        "url": foto_url,
-                        "url_optimized": foto_optimizada,
-                        "orden": i + 1,
-                        "es_principal": i == 0,  # Primera foto es principal
-                        "descripcion": f"Foto {i+1}",
-                        "cloudinary_public_id": cloudinary_result.get('public_id'),
-                        "uploaded_at": datetime.now().isoformat(),
-                        "file_size": foto.size,
-                        "filename_original": foto.filename
-                    }
+                        fotos_json.append(foto_obj)
+                        fotos_subidas += 1
 
-                    fotos_json.append(foto_obj)
-                    fotos_subidas += 1
+                        # Guardar URL de la primera foto como principal
+                        if i == 0:
+                            foto_principal_url = upload_result['url']
 
-                    # Guardar URL de la primera foto como principal
-                    if i == 0:
-                        foto_principal_url = foto_url
-
-                    print(f"✅ Foto {i+1} subida exitosamente: {foto_optimizada}")
+                        print(f"✅ Foto {i+1} subida exitosamente: {upload_result['url']}")
 
                 except Exception as foto_error:
                     print(f"❌ Error subiendo foto {i+1}: {foto_error}")
@@ -2280,14 +2292,16 @@ async def delete_gallo_foto(
                 detail="Gallo no encontrado o no pertenece al usuario"
             )
 
-        # 2. Eliminar de Cloudinary
-        print(f"🔥 Eliminando foto de Cloudinary: {decoded_public_id}")
-        cloudinary_result = await CloudinaryService.delete_photo(decoded_public_id)
-
-        if not cloudinary_result.get('success', False):
-            print(f"⚠️ Advertencia: Error eliminando de Cloudinary: {cloudinary_result}")
-        else:
-            print(f"✅ Foto eliminada de Cloudinary exitosamente")
+        # 2. Eliminar del storage (ImageKit/Cloudinary)
+        print(f"🔥 Eliminando foto: {decoded_public_id}")
+        try:
+            success = storage_manager.delete_file(decoded_public_id)
+            if success:
+                print(f"✅ Foto eliminada exitosamente")
+            else:
+                print(f"⚠️ Advertencia: No se pudo eliminar la foto")
+        except Exception as e:
+            print(f"⚠️ Error eliminando foto: {e}")
 
         # 3. Actualizar fotos_adicionales JSON
         print(f"📊 Fotos actuales en BD: {type(gallo.fotos_adicionales)} - {gallo.fotos_adicionales}")

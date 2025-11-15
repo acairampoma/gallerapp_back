@@ -40,6 +40,7 @@ class Tope(Base):
     
     # Video y observaciones
     video_url = Column(Text, nullable=True)
+    file_id = Column(String(255), nullable=True)  # ImageKit file_id para eliminar
     observaciones = Column(Text, nullable=True)
     
     # Timestamps - EXACTOS como en BD

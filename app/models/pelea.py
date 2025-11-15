@@ -36,6 +36,7 @@ class Pelea(Base):
     
     # Video
     video_url = Column(Text, nullable=True)
+    file_id = Column(String(255), nullable=True)  # ImageKit file_id para eliminar
     
     # 🆕 NUEVOS CAMPOS AGREGADOS
     gallera = Column(String(255), nullable=True)

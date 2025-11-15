@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from typing import List, Optional, Dict
-from datetime import datetime
-import cloudinary.uploader
+from datetime import datetime, timedelta
+from app.services.storage import storage_manager
 import logging
 import time
 from functools import wraps
@@ -245,7 +245,7 @@ async def create_tope(
     - `video`: Archivo de video (MP4, MOV, AVI)
     
     **Características:**
-    - Subida automática a Cloudinary
+    - Subida automática a ImageKit
     - Validaciones de duración y tipos
     - Rollback automático en caso de error
     """
@@ -311,15 +311,19 @@ async def create_tope(
         if video and hasattr(video, 'filename') and video.filename:
             try:
                 video_content = await video.read()
-                upload_result = cloudinary.uploader.upload(
-                    video_content,
-                    resource_type="video",
-                    folder=f"galloapp/topes/user_{current_user_id}"
+                upload_result = storage_manager.upload_video(
+                    file_content=video_content,
+                    file_name=f"tope_{db_tope.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{video.filename}",
+                    folder=f"topes/user_{current_user_id}"
                 )
-                db_tope.video_url = upload_result.get('secure_url')
-                logger.info(f"Video subido para tope", extra={"user_id": current_user_id})
+                if upload_result:
+                    db_tope.video_url = upload_result.url
+                    db_tope.file_id = upload_result.file_id
+                    logger.info(f"✅ Video subido a {storage_manager.provider_name} para tope {db_tope.id}")
+                else:
+                    logger.warning(f"⚠️ ImageKit no retornó resultado")
             except Exception as e:
-                logger.warning(f"Error subiendo video: {str(e)}")
+                logger.warning(f"❌ Error subiendo video: {str(e)}")
                 # Continuar sin video
         
         # Guardar en BD
@@ -438,17 +442,23 @@ async def update_tope(
         # Si hay nuevo video, actualizarlo
         if video and video.filename:
             try:
+                # Eliminar video anterior si existe
+                if tope.file_id:
+                    logger.info(f"🗑️ Eliminando video anterior: {tope.file_id}")
+                    storage_manager.delete_file(tope.file_id)
+                
                 video_content = await video.read()
-                upload_result = cloudinary.uploader.upload(
-                    video_content,
-                    resource_type="video",
-                    folder=f"galloapp/topes/user_{current_user_id}",
-                    public_id=f"tope_{tope.gallo_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    overwrite=True
+                upload_result = storage_manager.upload_video(
+                    file_content=video_content,
+                    file_name=f"tope_{tope.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{video.filename}",
+                    folder=f"topes/user_{current_user_id}"
                 )
-                tope.video_url = upload_result.get('secure_url')
+                if upload_result:
+                    tope.video_url = upload_result.url
+                    tope.file_id = upload_result.file_id
+                    logger.info(f"✅ Video actualizado en {storage_manager.provider_name} para tope {tope_id}")
             except Exception as e:
-                logger.warning(f"Error actualizando video para tope {tope_id}: {str(e)}")
+                logger.warning(f"❌ Error actualizando video para tope {tope_id}: {str(e)}")
         
         tope.updated_at = datetime.utcnow()
         db.commit()
@@ -518,15 +528,16 @@ async def delete_tope(
                 detail=f"Tope con ID {tope_id} no encontrado o no pertenece al usuario"
             )
     
-        # Si hay video, intentar eliminarlo de Cloudinary
-        if tope.video_url:
+        # Si hay video, eliminarlo de ImageKit
+        if tope.file_id:
             try:
-                # Extraer public_id del URL
-                parts = tope.video_url.split('/')
-                public_id = '/'.join(parts[-2:]).split('.')[0]
-                cloudinary.uploader.destroy(public_id, resource_type="video")
+                success = storage_manager.delete_file(tope.file_id)
+                if success:
+                    logger.info(f"✅ Video eliminado de {storage_manager.provider_name}: {tope.file_id}")
+                else:
+                    logger.warning(f"⚠️ No se pudo eliminar video de {storage_manager.provider_name}")
             except Exception as e:
-                logger.warning(f"Error eliminando video de Cloudinary para tope {tope_id}: {str(e)}")
+                logger.warning(f"❌ Error eliminando video de ImageKit para tope {tope_id}: {str(e)}")
         
         db.delete(tope)
         db.commit()

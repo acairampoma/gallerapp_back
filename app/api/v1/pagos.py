@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import logging
 import base64
-import cloudinary.uploader
+from app.services.storage import storage_manager
 
 from app.database import get_db
 from app.core.security import get_current_user_id
@@ -170,20 +170,20 @@ async def confirmar_pago_realizado(
         comprobante_subido = False
         if request.comprobante_base64:
             try:
-                # Decodificar y subir a Cloudinary
+                # Decodificar y subir a ImageKit
                 comprobante_bytes = base64.b64decode(request.comprobante_base64)
                 
-                upload_result = cloudinary.uploader.upload(
-                    comprobante_bytes,
-                    folder=f"galloapp/pagos/comprobantes/user_{current_user_id}",
-                    public_id=f"comprobante_pago_{pago.id}_{int(datetime.now().timestamp())}",
-                    resource_type="image",
-                    tags=["comprobante", "pago", f"user_{current_user_id}"]
+                upload_result = storage_manager.upload_image(
+                    file_content=comprobante_bytes,
+                    file_name=f"comprobante_pago_{pago.id}_{int(datetime.now().timestamp())}.jpg",
+                    folder=f"pagos/comprobantes/user_{current_user_id}"
                 )
                 
-                pago.comprobante_url = upload_result.get('secure_url')
-                comprobante_subido = True
-                logger.info(f"Comprobante subido para pago {pago.id}")
+                if upload_result:
+                    pago.comprobante_url = upload_result.url
+                    pago.comprobante_file_id = upload_result.file_id
+                    comprobante_subido = True
+                    logger.info(f"Comprobante subido para pago {pago.id}")
                 
             except Exception as e:
                 logger.warning(f"Error subiendo comprobante para pago {pago.id}: {e}")
@@ -199,32 +199,32 @@ async def confirmar_pago_realizado(
         # Crear notificaciones para administradores
         await _notificar_admins_nuevo_pago(pago.id, current_user_id, db)
         
-        # 🔔 ENVIAR NOTIFICACIÓN FCM A ADMINS SOBRE NUEVA SUSCRIPCIÓN
+        # ENVIAR NOTIFICACIÓN FCM A ADMINS SOBRE NUEVA SUSCRIPCIÓN
         try:
-            logger.info("🔔 === INICIANDO PROCESO DE NOTIFICACIÓN FCM ====")
+            logger.info(" === INICIANDO PROCESO DE NOTIFICACIÓN FCM ====")
             from app.models.user import User
             usuario = db.query(User).filter(User.id == current_user_id).first()
             user_email = usuario.email if usuario else f"Usuario {current_user_id}"
-            logger.info(f"📧 Usuario encontrado: {user_email}")
+            logger.info(f"Usuario encontrado: {user_email}")
             
             plan = db.query(PlanCatalogo).filter(
                 PlanCatalogo.codigo == pago.plan_codigo
             ).first()
             plan_nombre = plan.nombre if plan else pago.plan_codigo.title()
-            logger.info(f"📋 Plan encontrado: {plan_nombre}")
+            logger.info(f"Plan encontrado: {plan_nombre}")
             
-            logger.info("🚀 Llamando a FCMNotificationService...")
+            logger.info("Llamando a FCMNotificationService...")
             await FCMNotificationService.notificar_nueva_suscripcion_a_admins(
                 db=db,
                 usuario_email=user_email,
                 plan_nombre=plan_nombre
             )
-            logger.info(f"✅ Notificación FCM enviada a admins sobre nueva suscripción de {user_email}")
+            logger.info(f"Notificación FCM enviada a admins sobre nueva suscripción de {user_email}")
         except Exception as e:
-            logger.error(f"⚠️ Error enviando notificación FCM a admins: {e}")
-            logger.error(f"🔍 Stack trace completo: {e.__class__.__name__}: {str(e)}")
+            logger.error(f"Error enviando notificación FCM a admins: {e}")
+            logger.error(f"Stack trace completo: {e.__class__.__name__}: {str(e)}")
             import traceback
-            logger.error(f"📊 Traceback: {traceback.format_exc()}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             # No fallar la confirmación por esto
         
         db.commit()
@@ -255,7 +255,7 @@ async def subir_comprobante_pago(
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """📸 Subir comprobante de pago (imagen)"""
+    """Subir comprobante de pago (imagen)"""
     try:
         # Validar archivo
         if not comprobante.content_type.startswith('image/'):
@@ -284,19 +284,20 @@ async def subir_comprobante_pago(
                 detail="Pago no encontrado"
             )
         
-        # Leer y subir archivo
+        # Leer y subir archivo a ImageKit
         content = await comprobante.read()
         
-        upload_result = cloudinary.uploader.upload(
-            content,
-            folder=f"galloapp/pagos/comprobantes/user_{current_user_id}",
-            public_id=f"comprobante_pago_{pago_id}_{int(datetime.now().timestamp())}",
-            resource_type="image",
-            tags=["comprobante", "pago", f"user_{current_user_id}"]
+        upload_result = storage_manager.upload_image(
+            file_content=content,
+            file_name=f"comprobante_pago_{pago_id}_{int(datetime.now().timestamp())}_{comprobante.filename}",
+            folder=f"pagos/comprobantes/user_{current_user_id}"
         )
         
+        if upload_result:
+            pago.comprobante_url = upload_result.url
+            pago.comprobante_file_id = upload_result.file_id
+        
         # Actualizar pago
-        pago.comprobante_url = upload_result.get('secure_url')
         db.commit()
         
         logger.info(f"Comprobante subido para pago {pago_id}")

@@ -51,7 +51,8 @@ class PeleaEvento(Base):
     )
 
     # 🎥 Media
-    video_url = Column(Text, nullable=True, comment="URL del video en Cloudinary")
+    video_url = Column(Text, nullable=True, comment="URL del video en ImageKit")
+    file_id = Column(String(255), nullable=True, comment="File ID de ImageKit para eliminar")
     thumbnail_pelea_url = Column(Text, nullable=True)
     estado_video = Column(
         String(50),
@@ -95,6 +96,7 @@ class PeleaEvento(Base):
             "duracion_minutos": self.duracion_minutos,
             "resultado": self.resultado,
             "video_url": self.video_url,
+            "file_id": self.file_id,
             "thumbnail_pelea_url": self.thumbnail_pelea_url,
             "estado_video": self.estado_video,
             "admin_editor_id": self.admin_editor_id,
