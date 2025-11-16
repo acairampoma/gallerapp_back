@@ -1240,22 +1240,45 @@ async def actualizar_fotos_multiples_gallo(
             print(f"⚠️ FOTO LEGACY DETECTADA: {foto_actual[:50]}...")
             print(f"✅ Se permitirá actualización automática a ImageKit")
 
-        # 2. Subir fotos a Storage y construir array JSON
-        fotos_json = []
+        # 2. Subir fotos a ImageKit - SEPARAR FOTO PRINCIPAL DE ADICIONALES
+        foto_principal_subida = None
+        fotos_adicionales_json = []
         fotos_subidas = 0
-        foto_principal_url = None
-        primera_foto_subida = None
 
-        fotos = [foto_1, foto_2, foto_3, foto_4]
+        # 2.1 SUBIR FOTO PRINCIPAL (foto_1) SI EXISTE
+        if foto_1 and foto_1.filename and foto_1.size > 0:
+            try:
+                print(f"📸 Subiendo FOTO PRINCIPAL: {foto_1.filename}")
+                
+                folder = f"gallos/user_{current_user_id}/gallo_{gallo_id}"
+                file_name = f"gallo_{gallo_result.codigo_identificacion}_principal_{foto_1.filename}"
+                
+                upload_result = await multi_image_service.upload_single_image(
+                    file=foto_1,
+                    folder=folder,
+                    file_name=file_name,
+                    optimize=True
+                )
 
-        for i, foto in enumerate(fotos):
+                if upload_result:
+                    foto_principal_subida = upload_result
+                    fotos_subidas += 1
+                    print(f"✅ FOTO PRINCIPAL subida: {upload_result['url']}")
+
+            except Exception as foto_error:
+                print(f"❌ Error subiendo foto principal: {foto_error}")
+
+        # 2.2 SUBIR FOTOS ADICIONALES (foto_2, foto_3, foto_4)
+        fotos_adicionales = [foto_2, foto_3, foto_4]
+        
+        for i, foto in enumerate(fotos_adicionales):
             if foto and foto.filename and foto.size > 0:
                 try:
-                    print(f"📸 Subiendo foto {i+1}: {foto.filename}")
+                    foto_numero = i + 2  # 2, 3, 4
+                    print(f"📸 Subiendo foto adicional {foto_numero}: {foto.filename}")
 
-                    # Subir con multi_image_service (MODERNO - 2025)
                     folder = f"gallos/user_{current_user_id}/gallo_{gallo_id}"
-                    file_name = f"gallo_{gallo_result.codigo_identificacion}_foto_{i+1}_{foto.filename}"
+                    file_name = f"gallo_{gallo_result.codigo_identificacion}_foto_{foto_numero}_{foto.filename}"
                     
                     upload_result = await multi_image_service.upload_single_image(
                         file=foto,
@@ -1265,31 +1288,26 @@ async def actualizar_fotos_multiples_gallo(
                     )
 
                     if upload_result:
-                        # Guardar la primera foto subida
-                        if primera_foto_subida is None:
-                            primera_foto_subida = upload_result
-                        
                         # Construir objeto de foto para JSON
                         foto_obj = {
                             "url": upload_result['url'],
                             "url_optimized": upload_result['url'],
-                            "orden": i + 1,
-                            "es_principal": False,  # Se marcará después según lógica
-                            "descripcion": f"Foto {i+1}",
+                            "orden": foto_numero,
+                            "es_principal": False,
+                            "descripcion": f"Foto {foto_numero}",
                             "file_id": upload_result.get('file_id'),
                             "uploaded_at": datetime.now().isoformat(),
                             "file_size": upload_result.get('size', foto.size),
                             "filename_original": foto.filename
                         }
 
-                        fotos_json.append(foto_obj)
+                        fotos_adicionales_json.append(foto_obj)
                         fotos_subidas += 1
 
-                        print(f"✅ Foto {i+1} subida exitosamente: {upload_result['url']}")
+                        print(f"✅ Foto adicional {foto_numero} subida: {upload_result['url']}")
 
                 except Exception as foto_error:
-                    print(f"❌ Error subiendo foto {i+1}: {foto_error}")
-                    # Continuar con las demás fotos
+                    print(f"❌ Error subiendo foto adicional {foto_numero}: {foto_error}")
                     continue
 
         if fotos_subidas == 0:
@@ -1305,13 +1323,11 @@ async def actualizar_fotos_multiples_gallo(
             actualizar_principal  # Usuario fuerza actualización
         )
         
-        if debe_actualizar_principal and primera_foto_subida:
+        foto_principal_url = gallo_result.foto_principal_url  # Por defecto, mantener la actual
+        
+        if debe_actualizar_principal and foto_principal_subida:
             # ACTUALIZAR FOTO PRINCIPAL + FOTOS ADICIONALES
-            foto_principal_url = primera_foto_subida['url']
-            
-            # Marcar la primera foto como principal en el JSON
-            if fotos_json:
-                fotos_json[0]['es_principal'] = True
+            foto_principal_url = foto_principal_subida['url']
             
             update_fotos = text("""
                 UPDATE gallos
@@ -1322,10 +1338,10 @@ async def actualizar_fotos_multiples_gallo(
                 WHERE id = :id AND user_id = :user_id
             """)
             
-            foto_optimizada = primera_foto_subida['url']
+            foto_optimizada = foto_principal_subida['url']
             
             db.execute(update_fotos, {
-                "fotos_json": json.dumps(fotos_json),
+                "fotos_json": json.dumps(fotos_adicionales_json),
                 "foto_principal": foto_principal_url,
                 "foto_optimizada": foto_optimizada,
                 "id": gallo_id,
@@ -1338,7 +1354,7 @@ async def actualizar_fotos_multiples_gallo(
             
             print(f"✅ {mensaje_accion}")
             
-        else:
+        elif fotos_adicionales_json:
             # SOLO ACTUALIZAR FOTOS ADICIONALES (PRESERVAR FOTO PRINCIPAL)
             update_fotos = text("""
                 UPDATE gallos
@@ -1348,13 +1364,34 @@ async def actualizar_fotos_multiples_gallo(
             """)
             
             db.execute(update_fotos, {
-                "fotos_json": json.dumps(fotos_json),
+                "fotos_json": json.dumps(fotos_adicionales_json),
                 "id": gallo_id,
                 "user_id": current_user_id
             })
             
-            foto_principal_url = gallo_result.foto_principal_url
             print(f"✅ Fotos adicionales actualizadas (foto principal preservada)")
+        
+        elif foto_principal_subida:
+            # SOLO ACTUALIZAR FOTO PRINCIPAL (SIN ADICIONALES)
+            update_fotos = text("""
+                UPDATE gallos
+                SET foto_principal_url = :foto_principal,
+                    url_foto_cloudinary = :foto_optimizada,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND user_id = :user_id
+            """)
+            
+            foto_principal_url = foto_principal_subida['url']
+            foto_optimizada = foto_principal_subida['url']
+            
+            db.execute(update_fotos, {
+                "foto_principal": foto_principal_url,
+                "foto_optimizada": foto_optimizada,
+                "id": gallo_id,
+                "user_id": current_user_id
+            })
+            
+            print(f"✅ Solo foto principal actualizada")
         db.commit()
 
         print(f"✅ {fotos_subidas} fotos actualizadas en BD para gallo {gallo_result.nombre}")
