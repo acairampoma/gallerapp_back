@@ -1288,29 +1288,55 @@ async def actualizar_fotos_multiples_gallo(
             )
 
         # 3. Actualizar gallo con las fotos en formato JSON
-        update_fotos = text("""
-            UPDATE gallos
-            SET fotos_adicionales = :fotos_json,
-                foto_principal_url = :foto_principal,
-                url_foto_cloudinary = :foto_optimizada,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = :id AND user_id = :user_id
-        """)
-
-        foto_optimizada = fotos_json[0]["url_optimized"] if fotos_json else None
-
-        db.execute(update_fotos, {
-            "fotos_json": json.dumps(fotos_json),
-            "foto_principal": foto_principal_url,
-            "foto_optimizada": foto_optimizada,
-            "id": gallo_id,
-            "user_id": current_user_id
-        })
+        # ⚠️ IMPORTANTE: Solo actualizar foto_principal_url si NO existe una previa
+        # Esto evita sobrescribir la foto principal cuando se agregan fotos adicionales
+        
+        if gallo_result.foto_principal_url:
+            # YA TIENE FOTO PRINCIPAL - Solo actualizar fotos_adicionales
+            update_fotos = text("""
+                UPDATE gallos
+                SET fotos_adicionales = :fotos_json,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND user_id = :user_id
+            """)
+            
+            db.execute(update_fotos, {
+                "fotos_json": json.dumps(fotos_json),
+                "id": gallo_id,
+                "user_id": current_user_id
+            })
+            
+            print(f"✅ Fotos adicionales actualizadas (foto principal preservada)")
+        else:
+            # NO TIENE FOTO PRINCIPAL - Usar la primera como principal
+            update_fotos = text("""
+                UPDATE gallos
+                SET fotos_adicionales = :fotos_json,
+                    foto_principal_url = :foto_principal,
+                    url_foto_cloudinary = :foto_optimizada,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND user_id = :user_id
+            """)
+            
+            foto_optimizada = fotos_json[0]["url_optimized"] if fotos_json else None
+            
+            db.execute(update_fotos, {
+                "fotos_json": json.dumps(fotos_json),
+                "foto_principal": foto_principal_url,
+                "foto_optimizada": foto_optimizada,
+                "id": gallo_id,
+                "user_id": current_user_id
+            })
+            
+            print(f"✅ Foto principal establecida + fotos adicionales")
         db.commit()
 
         print(f"✅ {fotos_subidas} fotos actualizadas en BD para gallo {gallo_result.nombre}")
 
         # 4. Retornar respuesta exitosa
+        # Devolver la foto principal correcta (la existente o la nueva)
+        foto_principal_final = gallo_result.foto_principal_url or foto_principal_url
+        
         return {
             "success": True,
             "message": f"Se actualizaron {fotos_subidas} fotos exitosamente",
@@ -1318,7 +1344,8 @@ async def actualizar_fotos_multiples_gallo(
                 "gallo_id": gallo_id,
                 "gallo_nombre": gallo_result.nombre,
                 "fotos_subidas": fotos_subidas,
-                "foto_principal_url": foto_principal_url,
+                "foto_principal_url": foto_principal_final,
+                "foto_principal_preservada": gallo_result.foto_principal_url is not None,
                 "fotos_detalle": fotos_json,
                 "total_fotos_almacenadas": len(fotos_json)
             }
