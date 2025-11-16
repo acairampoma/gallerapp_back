@@ -1197,22 +1197,24 @@ async def actualizar_fotos_multiples_gallo(
     foto_2: Optional[UploadFile] = File(None, description="Foto 2 del gallo"),
     foto_3: Optional[UploadFile] = File(None, description="Foto 3 del gallo"),
     foto_4: Optional[UploadFile] = File(None, description="Foto 4 del gallo"),
+    actualizar_principal: bool = Form(False, description="Forzar actualización de foto principal"),
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
     """
-    📸 ACTUALIZAR HASTA 4 FOTOS DE UN GALLO EXISTENTE
+    📸 ACTUALIZAR HASTA 4 FOTOS DE UN GALLO EXISTENTE (MEJORADO)
 
     Permite subir hasta 4 fotos que se almacenan en el campo JSON fotos_adicionales:
-    - Primera foto subida se marca como principal
+    - Detecta si foto_principal_url es de Cloudinary (legacy)
+    - Si es Cloudinary, permite actualización automática a ImageKit
+    - Si es ImageKit, preserva la foto principal (a menos que actualizar_principal=True)
+    - Primera foto subida se marca como principal si corresponde
     - Resto se marcan con orden secuencial
-    - Se genera URL optimizada para cada foto
-    - Mantiene compatibilidad con foto_principal_url
     """
     try:
         # 1. Verificar que el gallo existe y pertenece al usuario
         gallo_query = text("""
-            SELECT id, nombre, codigo_identificacion, fotos_adicionales
+            SELECT id, nombre, codigo_identificacion, fotos_adicionales, foto_principal_url
             FROM gallos
             WHERE id = :gallo_id AND user_id = :user_id
         """)
@@ -1229,11 +1231,20 @@ async def actualizar_fotos_multiples_gallo(
             )
 
         print(f"🔍 Gallo encontrado: {gallo_result.nombre} ({gallo_result.codigo_identificacion})")
+        
+        # 🔍 DETECTAR SI LA FOTO ACTUAL ES DE CLOUDINARY (LEGACY)
+        foto_actual = gallo_result.foto_principal_url or ""
+        es_cloudinary = 'cloudinary' in foto_actual.lower()
+        
+        if es_cloudinary:
+            print(f"⚠️ FOTO LEGACY DETECTADA: {foto_actual[:50]}...")
+            print(f"✅ Se permitirá actualización automática a ImageKit")
 
-        # 2. Subir fotos a Cloudinary y construir array JSON
+        # 2. Subir fotos a Storage y construir array JSON
         fotos_json = []
         fotos_subidas = 0
         foto_principal_url = None
+        primera_foto_subida = None
 
         fotos = [foto_1, foto_2, foto_3, foto_4]
 
@@ -1254,14 +1265,18 @@ async def actualizar_fotos_multiples_gallo(
                     )
 
                     if upload_result:
+                        # Guardar la primera foto subida
+                        if primera_foto_subida is None:
+                            primera_foto_subida = upload_result
+                        
                         # Construir objeto de foto para JSON
                         foto_obj = {
                             "url": upload_result['url'],
                             "url_optimized": upload_result['url'],
                             "orden": i + 1,
-                            "es_principal": i == 0,  # Primera foto es principal
+                            "es_principal": False,  # Se marcará después según lógica
                             "descripcion": f"Foto {i+1}",
-                            "cloudinary_public_id": upload_result['file_id'],
+                            "file_id": upload_result.get('file_id'),
                             "uploaded_at": datetime.now().isoformat(),
                             "file_size": upload_result.get('size', foto.size),
                             "filename_original": foto.filename
@@ -1269,10 +1284,6 @@ async def actualizar_fotos_multiples_gallo(
 
                         fotos_json.append(foto_obj)
                         fotos_subidas += 1
-
-                        # Guardar URL de la primera foto como principal
-                        if i == 0:
-                            foto_principal_url = upload_result['url']
 
                         print(f"✅ Foto {i+1} subida exitosamente: {upload_result['url']}")
 
@@ -1287,28 +1298,21 @@ async def actualizar_fotos_multiples_gallo(
                 detail="No se pudo subir ninguna foto. Verifica que los archivos sean válidos."
             )
 
-        # 3. Actualizar gallo con las fotos en formato JSON
-        # ⚠️ IMPORTANTE: Solo actualizar foto_principal_url si NO existe una previa
-        # Esto evita sobrescribir la foto principal cuando se agregan fotos adicionales
+        # 3. LÓGICA MEJORADA: Decidir si actualizar foto_principal_url
+        debe_actualizar_principal = (
+            not gallo_result.foto_principal_url or  # No tiene foto principal
+            es_cloudinary or  # Es foto de Cloudinary (legacy)
+            actualizar_principal  # Usuario fuerza actualización
+        )
         
-        if gallo_result.foto_principal_url:
-            # YA TIENE FOTO PRINCIPAL - Solo actualizar fotos_adicionales
-            update_fotos = text("""
-                UPDATE gallos
-                SET fotos_adicionales = :fotos_json,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = :id AND user_id = :user_id
-            """)
+        if debe_actualizar_principal and primera_foto_subida:
+            # ACTUALIZAR FOTO PRINCIPAL + FOTOS ADICIONALES
+            foto_principal_url = primera_foto_subida['url']
             
-            db.execute(update_fotos, {
-                "fotos_json": json.dumps(fotos_json),
-                "id": gallo_id,
-                "user_id": current_user_id
-            })
+            # Marcar la primera foto como principal en el JSON
+            if fotos_json:
+                fotos_json[0]['es_principal'] = True
             
-            print(f"✅ Fotos adicionales actualizadas (foto principal preservada)")
-        else:
-            # NO TIENE FOTO PRINCIPAL - Usar la primera como principal
             update_fotos = text("""
                 UPDATE gallos
                 SET fotos_adicionales = :fotos_json,
@@ -1318,7 +1322,7 @@ async def actualizar_fotos_multiples_gallo(
                 WHERE id = :id AND user_id = :user_id
             """)
             
-            foto_optimizada = fotos_json[0]["url_optimized"] if fotos_json else None
+            foto_optimizada = primera_foto_subida['url']
             
             db.execute(update_fotos, {
                 "fotos_json": json.dumps(fotos_json),
@@ -1328,15 +1332,34 @@ async def actualizar_fotos_multiples_gallo(
                 "user_id": current_user_id
             })
             
-            print(f"✅ Foto principal establecida + fotos adicionales")
+            mensaje_accion = "Foto principal actualizada + fotos adicionales agregadas"
+            if es_cloudinary:
+                mensaje_accion += " (migrada de Cloudinary a ImageKit)"
+            
+            print(f"✅ {mensaje_accion}")
+            
+        else:
+            # SOLO ACTUALIZAR FOTOS ADICIONALES (PRESERVAR FOTO PRINCIPAL)
+            update_fotos = text("""
+                UPDATE gallos
+                SET fotos_adicionales = :fotos_json,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND user_id = :user_id
+            """)
+            
+            db.execute(update_fotos, {
+                "fotos_json": json.dumps(fotos_json),
+                "id": gallo_id,
+                "user_id": current_user_id
+            })
+            
+            foto_principal_url = gallo_result.foto_principal_url
+            print(f"✅ Fotos adicionales actualizadas (foto principal preservada)")
         db.commit()
 
         print(f"✅ {fotos_subidas} fotos actualizadas en BD para gallo {gallo_result.nombre}")
 
         # 4. Retornar respuesta exitosa
-        # Devolver la foto principal correcta (la existente o la nueva)
-        foto_principal_final = gallo_result.foto_principal_url or foto_principal_url
-        
         return {
             "success": True,
             "message": f"Se actualizaron {fotos_subidas} fotos exitosamente",
@@ -1344,8 +1367,9 @@ async def actualizar_fotos_multiples_gallo(
                 "gallo_id": gallo_id,
                 "gallo_nombre": gallo_result.nombre,
                 "fotos_subidas": fotos_subidas,
-                "foto_principal_url": foto_principal_final,
-                "foto_principal_preservada": gallo_result.foto_principal_url is not None,
+                "foto_principal_url": foto_principal_url,
+                "foto_principal_actualizada": debe_actualizar_principal,
+                "era_cloudinary": es_cloudinary,
                 "fotos_detalle": fotos_json,
                 "total_fotos_almacenadas": len(fotos_json)
             }
