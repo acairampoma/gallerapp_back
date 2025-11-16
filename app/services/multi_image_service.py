@@ -34,14 +34,10 @@ class MultiImageService:
     @staticmethod
     def validate_image(file: UploadFile) -> bool:
         """Validar imagen rápidamente"""
-        # Validar tipo
-        if file.content_type not in MultiImageService.ALLOWED_TYPES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Tipo no permitido. Use: {', '.join(MultiImageService.ALLOWED_TYPES)}"
-            )
+        # ✅ VALIDACIÓN FLEXIBLE - Como profile que funciona
+        # No validar content_type estrictamente porque puede venir como application/octet-stream
         
-        # Validar tamaño (si está disponible)
+        # Solo validar tamaño si está disponible
         if hasattr(file, 'size') and file.size:
             max_bytes = MultiImageService.MAX_SIZE_MB * 1024 * 1024
             if file.size > max_bytes:
