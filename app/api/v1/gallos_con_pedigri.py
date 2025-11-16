@@ -1356,6 +1356,29 @@ async def actualizar_fotos_multiples_gallo(
             
         elif fotos_adicionales_json:
             # SOLO ACTUALIZAR FOTOS ADICIONALES (PRESERVAR FOTO PRINCIPAL)
+            # 🔥 AGREGAR las nuevas fotos al array existente, NO reemplazar
+            fotos_actuales = []
+            try:
+                if gallo_result.fotos_adicionales:
+                    fotos_actuales = json.loads(gallo_result.fotos_adicionales)
+                    if not isinstance(fotos_actuales, list):
+                        fotos_actuales = []
+            except:
+                fotos_actuales = []
+            
+            print(f"📦 Fotos adicionales actuales en BD: {len(fotos_actuales)}")
+            print(f"📦 Fotos adicionales nuevas a agregar: {len(fotos_adicionales_json)}")
+            
+            # Agregar las nuevas fotos (evitando duplicados por URL)
+            urls_existentes = {f.get('url') for f in fotos_actuales if isinstance(f, dict) and f.get('url')}
+            
+            for nueva_foto in fotos_adicionales_json:
+                if nueva_foto['url'] not in urls_existentes:
+                    fotos_actuales.append(nueva_foto)
+                    print(f"✅ Foto adicional agregada: orden {nueva_foto['orden']}")
+                else:
+                    print(f"⚠️ Foto duplicada, no se agrega: {nueva_foto['url']}")
+            
             update_fotos = text("""
                 UPDATE gallos
                 SET fotos_adicionales = :fotos_json,
@@ -1364,12 +1387,12 @@ async def actualizar_fotos_multiples_gallo(
             """)
             
             db.execute(update_fotos, {
-                "fotos_json": json.dumps(fotos_adicionales_json),
+                "fotos_json": json.dumps(fotos_actuales),  # ✅ Guardar array completo (existentes + nuevas)
                 "id": gallo_id,
                 "user_id": current_user_id
             })
             
-            print(f"✅ Fotos adicionales actualizadas (foto principal preservada)")
+            print(f"✅ {len(fotos_adicionales_json)} fotos adicionales agregadas. Total en BD: {len(fotos_actuales)} (foto principal preservada)")
         
         elif foto_principal_subida:
             # SOLO ACTUALIZAR FOTO PRINCIPAL (SIN ADICIONALES)
