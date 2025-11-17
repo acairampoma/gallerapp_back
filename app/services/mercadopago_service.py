@@ -1,6 +1,8 @@
 # 💳 Servicio de Mercado Pago - Integración Completa
 import os
 import logging
+import hmac
+import hashlib
 from typing import Dict, Any, Optional
 import mercadopago
 from datetime import datetime, timedelta
@@ -24,6 +26,7 @@ class MercadoPagoService:
         self.public_key = os.getenv("MERCADOPAGO_PUBLIC_KEY")
         self.environment = os.getenv("MERCADOPAGO_ENVIRONMENT", "production")
         self.webhook_url = os.getenv("MERCADOPAGO_WEBHOOK_URL")
+        self.webhook_secret = os.getenv("MERCADOPAGO_WEBHOOK_SECRET")
         
         if not self.access_token:
             logger.warning("⚠️ MERCADOPAGO_ACCESS_TOKEN no configurado")
@@ -31,6 +34,8 @@ class MercadoPagoService:
         else:
             self.sdk = mercadopago.SDK(self.access_token)
             logger.info(f"✅ Mercado Pago SDK inicializado - Ambiente: {self.environment}")
+            if self.webhook_secret:
+                logger.info(f"✅ Webhook Secret configurado para validación de firma")
     
     def crear_preferencia_pago(
         self,
@@ -157,6 +162,61 @@ class MercadoPagoService:
         except Exception as e:
             logger.error(f"❌ Error obteniendo pago {payment_id}: {e}")
             return None
+    
+    def validar_firma_webhook(self, x_signature: str, x_request_id: str, data_id: str) -> bool:
+        """
+        Valida la firma del webhook de Mercado Pago
+        
+        Args:
+            x_signature: Header x-signature del webhook
+            x_request_id: Header x-request-id del webhook
+            data_id: ID del recurso notificado
+            
+        Returns:
+            True si la firma es válida, False en caso contrario
+        """
+        if not self.webhook_secret:
+            logger.warning("⚠️ WEBHOOK_SECRET no configurado, saltando validación de firma")
+            return True
+        
+        try:
+            # Extraer ts y hash de x-signature
+            # Formato: ts=1234567890,v1=hash_value
+            parts = {}
+            for part in x_signature.split(','):
+                key, value = part.split('=')
+                parts[key] = value
+            
+            ts = parts.get('ts')
+            received_hash = parts.get('v1')
+            
+            if not ts or not received_hash:
+                logger.error("❌ Firma inválida: falta ts o v1")
+                return False
+            
+            # Crear el manifest (string a firmar)
+            manifest = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
+            
+            # Calcular HMAC SHA256
+            calculated_hash = hmac.new(
+                self.webhook_secret.encode(),
+                manifest.encode(),
+                hashlib.sha256
+            ).hexdigest()
+            
+            # Comparar hashes
+            is_valid = hmac.compare_digest(calculated_hash, received_hash)
+            
+            if is_valid:
+                logger.info("✅ Firma del webhook validada correctamente")
+            else:
+                logger.error("❌ Firma del webhook inválida")
+            
+            return is_valid
+            
+        except Exception as e:
+            logger.error(f"❌ Error validando firma del webhook: {e}")
+            return False
     
     def procesar_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """

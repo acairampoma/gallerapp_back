@@ -157,6 +157,20 @@ async def webhook_mercadopago(
         
         logger.info(f"📬 Webhook recibido de Mercado Pago: {body}")
         
+        # Validar firma del webhook (seguridad)
+        x_signature = headers.get("x-signature")
+        x_request_id = headers.get("x-request-id")
+        
+        if x_signature and x_request_id:
+            data_id = body.get("data", {}).get("id") or body.get("id")
+            
+            if not mercadopago_service.validar_firma_webhook(x_signature, x_request_id, str(data_id)):
+                logger.error("❌ Firma del webhook inválida - Posible intento de fraude")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Firma del webhook inválida"
+                )
+        
         # Procesar webhook
         resultado = mercadopago_service.procesar_webhook(body)
         
