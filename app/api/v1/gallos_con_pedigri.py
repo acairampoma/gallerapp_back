@@ -1326,29 +1326,49 @@ async def actualizar_fotos_multiples_gallo(
         foto_principal_url = gallo_result.foto_principal_url  # Por defecto, mantener la actual
         
         if debe_actualizar_principal and foto_principal_subida:
-            # ACTUALIZAR FOTO PRINCIPAL + FOTOS ADICIONALES
+            # ACTUALIZAR FOTO PRINCIPAL (+ FOTOS ADICIONALES SI HAY)
             foto_principal_url = foto_principal_subida['url']
-            
-            update_fotos = text("""
-                UPDATE gallos
-                SET fotos_adicionales = :fotos_json,
-                    foto_principal_url = :foto_principal,
-                    url_foto_cloudinary = :foto_optimizada,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = :id AND user_id = :user_id
-            """)
-            
             foto_optimizada = foto_principal_subida['url']
             
-            db.execute(update_fotos, {
-                "fotos_json": json.dumps(fotos_adicionales_json),
-                "foto_principal": foto_principal_url,
-                "foto_optimizada": foto_optimizada,
-                "id": gallo_id,
-                "user_id": current_user_id
-            })
+            if fotos_adicionales_json:
+                # Caso 1: Foto principal + adicionales
+                update_fotos = text("""
+                    UPDATE gallos
+                    SET fotos_adicionales = :fotos_json,
+                        foto_principal_url = :foto_principal,
+                        url_foto_cloudinary = :foto_optimizada,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id AND user_id = :user_id
+                """)
+                
+                db.execute(update_fotos, {
+                    "fotos_json": json.dumps(fotos_adicionales_json),
+                    "foto_principal": foto_principal_url,
+                    "foto_optimizada": foto_optimizada,
+                    "id": gallo_id,
+                    "user_id": current_user_id
+                })
+                
+                mensaje_accion = "Foto principal actualizada + fotos adicionales agregadas"
+            else:
+                # Caso 2: SOLO foto principal (preservar adicionales existentes)
+                update_fotos = text("""
+                    UPDATE gallos
+                    SET foto_principal_url = :foto_principal,
+                        url_foto_cloudinary = :foto_optimizada,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id AND user_id = :user_id
+                """)
+                
+                db.execute(update_fotos, {
+                    "foto_principal": foto_principal_url,
+                    "foto_optimizada": foto_optimizada,
+                    "id": gallo_id,
+                    "user_id": current_user_id
+                })
+                
+                mensaje_accion = "Foto principal actualizada (fotos adicionales preservadas)"
             
-            mensaje_accion = "Foto principal actualizada + fotos adicionales agregadas"
             if es_cloudinary:
                 mensaje_accion += " (migrada de Cloudinary a ImageKit)"
             
