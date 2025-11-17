@@ -1439,7 +1439,17 @@ async def actualizar_fotos_multiples_gallo(
 
         print(f"✅ {fotos_subidas} fotos actualizadas en BD para gallo {gallo_result.nombre}")
 
-        # 4. Retornar respuesta exitosa
+        # 4. Construir detalle de fotos para respuesta
+        fotos_detalle = []
+        if foto_principal_subida:
+            fotos_detalle.append({
+                "tipo": "principal",
+                "url": foto_principal_subida['url'],
+                "orden": 1
+            })
+        fotos_detalle.extend(fotos_adicionales_json)
+
+        # 5. Retornar respuesta exitosa
         return {
             "success": True,
             "message": f"Se actualizaron {fotos_subidas} fotos exitosamente",
@@ -1450,8 +1460,8 @@ async def actualizar_fotos_multiples_gallo(
                 "foto_principal_url": foto_principal_url,
                 "foto_principal_actualizada": debe_actualizar_principal,
                 "era_cloudinary": es_cloudinary,
-                "fotos_detalle": fotos_json,
-                "total_fotos_almacenadas": len(fotos_json)
+                "fotos_detalle": fotos_detalle,
+                "total_fotos_almacenadas": len(fotos_detalle)
             }
         }
 
