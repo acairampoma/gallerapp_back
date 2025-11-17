@@ -59,13 +59,16 @@ try:
     from app.api.v1.suscripciones import router as suscripciones_router
     from app.api.v1.pagos import router as pagos_router
     from app.api.v1.admin import router as admin_router
+    from app.api.v1.mercadopago import router as mercadopago_router
     print("   - ✅ Sistema de Suscripciones COMPLETO")
     print("   - ✅ Pagos con QR Yape")
+    print("   - ✅ Mercado Pago Integración")
     print("   - ✅ Panel Administrativo")
 except ImportError as e:
     print(f"⚠️ Sistema de suscripciones no disponible: {e}")
     suscripciones_router = None
     pagos_router = None
+    mercadopago_router = None
     admin_router = None
 
 # 💰 Cargar módulo inversiones
@@ -288,6 +291,14 @@ if admin_router:
         # NO agregar tags aquí - ya están en el router
     )
     print("✅ Router de admin activado")
+
+if mercadopago_router:
+    app.include_router(
+        mercadopago_router,
+        prefix="/api/v1"
+        # NO agregar tags aquí - ya están en el router
+    )
+    print("✅ Router de Mercado Pago activado")
 
 if inversiones_router:
     app.include_router(

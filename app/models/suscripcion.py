@@ -1,5 +1,5 @@
 # 📋 Modelo de Suscripciones - Sistema Premium
-from sqlalchemy import Column, Integer, String, Date, DateTime, Numeric, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Date, DateTime, Numeric, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -31,6 +31,17 @@ class Suscripcion(Base):
     peleas_por_gallo = Column(Integer, nullable=False, default=2)
     vacunas_por_gallo = Column(Integer, nullable=False, default=2)
     # marketplace_publicaciones_max se obtiene via JOIN con planes_catalogo
+    
+    # 💳 Campos de Mercado Pago (nuevos)
+    payment_id = Column(String(100), nullable=True, index=True)  # ID del pago en Mercado Pago
+    preference_id = Column(String(100), nullable=True)  # ID de la preferencia
+    external_reference = Column(String(200), nullable=True)  # Referencia única
+    payment_method = Column(String(50), nullable=True)  # yape, credit_card, debit_card, etc
+    payment_status = Column(String(50), nullable=True)  # approved, pending, rejected
+    payment_status_detail = Column(String(100), nullable=True)  # Detalle del estado
+    transaction_amount = Column(Numeric(10, 2), nullable=True)  # Monto real pagado
+    fecha_pago = Column(DateTime(timezone=True), nullable=True)  # Fecha del pago
+    mercadopago_data = Column(Text, nullable=True)  # JSON con data completa de MP
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

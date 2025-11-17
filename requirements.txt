@@ -31,6 +31,9 @@ email-validator==2.1.0
 # QR Code Generation
 qrcode[pil]==7.4.2
 
+# Mercado Pago SDK
+mercadopago==2.2.1
+
 # PDF Generation - ReportLab (Railway compatible)
 reportlab==4.0.7
 Jinja2==3.1.2
