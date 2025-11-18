@@ -178,6 +178,11 @@ async def pagar_con_yape(
         logger.info(f"📱 Creando preferencia de Yape para usuario {current_user_id}")
         logger.info(f"   Plan: {plan.nombre}, Monto: S/. {plan.precio}")
         
+        # Obtener nombre del usuario
+        user_nombre = "Usuario"
+        if usuario.profile and len(usuario.profile) > 0:
+            user_nombre = usuario.profile[0].nombre_completo or "Usuario"
+        
         # Crear preferencia de pago con Yape
         resultado = mercadopago_service.crear_preferencia_yape(
             user_id=current_user_id,
@@ -185,7 +190,7 @@ async def pagar_con_yape(
             plan_nombre=plan.nombre,
             monto=float(plan.precio),
             user_email=usuario.email,
-            user_nombre=usuario.profile.nombre_completo if usuario.profile else "Usuario"
+            user_nombre=user_nombre
         )
         
         if not resultado.get("success"):
