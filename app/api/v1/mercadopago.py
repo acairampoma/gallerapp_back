@@ -136,6 +136,168 @@ async def crear_preferencia_pago(
         )
 
 # ========================================
+# PAGO CON YAPE
+# ========================================
+
+@router.post("/pagar-con-yape")
+async def pagar_con_yape(
+    request: Request,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    📱 Procesar pago con Yape usando Mercado Pago API
+    
+    Recibe número de teléfono y OTP de Yape, genera token
+    y procesa el pago automáticamente con Mercado Pago.
+    """
+    try:
+        # Obtener datos del request
+        data = await request.json()
+        numero_telefono = data.get("numero_telefono")
+        otp = data.get("otp")
+        plan_codigo = data.get("plan_codigo")
+        monto = data.get("monto")
+        
+        # Validaciones
+        if not numero_telefono or len(numero_telefono) != 9:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Número de teléfono inválido (debe tener 9 dígitos)"
+            )
+        
+        if not otp:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Código OTP requerido"
+            )
+        
+        if not plan_codigo or not monto:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Plan y monto requeridos"
+            )
+        
+        # Obtener usuario
+        usuario = db.query(User).filter(User.id == current_user_id).first()
+        if not usuario:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado"
+            )
+        
+        # Obtener plan
+        plan = db.query(PlanCatalogo).filter(
+            and_(
+                PlanCatalogo.codigo == plan_codigo.lower(),
+                PlanCatalogo.activo == True
+            )
+        ).first()
+        
+        if not plan:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Plan '{plan_codigo}' no encontrado"
+            )
+        
+        logger.info(f"📱 Procesando pago con Yape para usuario {current_user_id}")
+        logger.info(f"   Plan: {plan.nombre}, Monto: S/. {monto}")
+        
+        # Procesar pago con Yape a través de Mercado Pago
+        resultado = mercadopago_service.procesar_pago_yape(
+            numero_telefono=numero_telefono,
+            otp=otp,
+            monto=float(monto),
+            user_email=usuario.email,
+            user_id=current_user_id,
+            plan_codigo=plan.codigo,
+            plan_nombre=plan.nombre
+        )
+        
+        if not resultado.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error procesando pago: {resultado.get('error', 'Error desconocido')}"
+            )
+        
+        # Crear o actualizar suscripción
+        payment_id = resultado["payment_id"]
+        payment_status = resultado["status"]
+        
+        # Buscar suscripción existente pendiente
+        suscripcion = db.query(Suscripcion).filter(
+            and_(
+                Suscripcion.user_id == current_user_id,
+                Suscripcion.plan_type == plan.codigo,
+                Suscripcion.status == "pending"
+            )
+        ).first()
+        
+        if not suscripcion:
+            # Crear nueva suscripción
+            suscripcion = Suscripcion(
+                user_id=current_user_id,
+                plan_type=plan.codigo,
+                plan_name=plan.nombre,
+                precio=plan.precio,
+                status="pending",
+                fecha_inicio=date.today(),
+                fecha_fin=date.today() + timedelta(days=plan.duracion_dias) if plan.duracion_dias else None,
+                gallos_maximo=plan.gallos_maximo,
+                topes_por_gallo=plan.topes_por_gallo,
+                peleas_por_gallo=plan.peleas_por_gallo,
+                vacunas_por_gallo=plan.vacunas_por_gallo
+            )
+            db.add(suscripcion)
+        
+        # Actualizar con datos del pago
+        suscripcion.payment_id = payment_id
+        suscripcion.payment_status = payment_status
+        suscripcion.payment_method = "yape"
+        suscripcion.transaction_amount = float(monto)
+        suscripcion.mercadopago_data = json.dumps(resultado)
+        
+        # Si el pago fue aprobado, activar suscripción
+        if payment_status == "approved":
+            suscripcion.status = "active"
+            suscripcion.fecha_pago = datetime.now()
+            
+            # Desactivar otras suscripciones del usuario
+            db.query(Suscripcion).filter(
+                and_(
+                    Suscripcion.user_id == current_user_id,
+                    Suscripcion.id != suscripcion.id,
+                    Suscripcion.status == "active"
+                )
+            ).update({"status": "inactive"})
+            
+            logger.info(f"✅ Pago aprobado - Suscripción activada para usuario {current_user_id}")
+        else:
+            logger.info(f"⏳ Pago en estado: {payment_status}")
+        
+        db.commit()
+        db.refresh(suscripcion)
+        
+        return {
+            "success": True,
+            "payment_id": payment_id,
+            "status": payment_status,
+            "status_detail": resultado.get("status_detail"),
+            "suscripcion_id": suscripcion.id,
+            "message": "Pago aprobado" if payment_status == "approved" else "Pago en proceso"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Error procesando pago con Yape: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno al procesar pago: {str(e)}"
+        )
+
+# ========================================
 # WEBHOOK DE MERCADO PAGO
 # ========================================
 

@@ -289,6 +289,99 @@ class MercadoPagoService:
         # Mercado Pago envía x-signature y x-request-id
         return True
     
+    def procesar_pago_yape(
+        self,
+        numero_telefono: str,
+        otp: str,
+        monto: float,
+        user_email: str,
+        user_id: int,
+        plan_codigo: str,
+        plan_nombre: str
+    ) -> Dict[str, Any]:
+        """
+        Procesa un pago con Yape usando Mercado Pago API
+        
+        Args:
+            numero_telefono: Número de teléfono de Yape (9 dígitos)
+            otp: Código OTP de Yape
+            monto: Monto a cobrar
+            user_email: Email del usuario
+            user_id: ID del usuario
+            plan_codigo: Código del plan
+            plan_nombre: Nombre del plan
+            
+        Returns:
+            Dict con resultado del pago
+        """
+        try:
+            if not self.sdk:
+                raise Exception("Mercado Pago no configurado")
+            
+            logger.info(f"📱 Procesando pago con Yape - Usuario: {user_id}, Monto: S/. {monto}")
+            
+            # Construir referencia única
+            referencia = f"YAPE_{user_id}_{plan_codigo}_{int(datetime.now().timestamp())}"
+            
+            # Crear el pago con Yape
+            payment_data = {
+                "transaction_amount": float(monto),
+                "description": f"Plan {plan_nombre} - Casta de Gallos",
+                "payment_method_id": "yape",
+                "payer": {
+                    "email": user_email,
+                    "identification": {
+                        "type": "DNI",
+                        "number": numero_telefono  # Usamos el número como identificación
+                    }
+                },
+                "token": otp,  # El OTP actúa como token
+                "installments": 1,
+                "external_reference": referencia,
+                "notification_url": self.webhook_url,
+                "metadata": {
+                    "user_id": user_id,
+                    "plan_codigo": plan_codigo,
+                    "numero_telefono": numero_telefono,
+                    "timestamp": datetime.now().isoformat()
+                }
+            }
+            
+            # Crear el pago
+            payment_response = self.sdk.payment().create(payment_data)
+            payment = payment_response["response"]
+            
+            logger.info(f"✅ Pago creado - ID: {payment['id']}, Estado: {payment['status']}")
+            
+            return {
+                "success": True,
+                "payment_id": str(payment["id"]),
+                "status": payment["status"],
+                "status_detail": payment["status_detail"],
+                "monto": payment["transaction_amount"],
+                "metodo_pago": "yape",
+                "fecha_creacion": payment["date_created"],
+                "fecha_aprobacion": payment.get("date_approved"),
+                "external_reference": referencia
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error procesando pago con Yape: {e}")
+            error_msg = str(e)
+            
+            # Extraer mensaje de error más específico si está disponible
+            if hasattr(e, 'response') and hasattr(e.response, 'json'):
+                try:
+                    error_data = e.response.json()
+                    error_msg = error_data.get('message', error_msg)
+                except:
+                    pass
+            
+            return {
+                "success": False,
+                "error": error_msg
+            }
+    
     def obtener_metodos_pago_disponibles(self) -> Dict[str, Any]:
         """
         Obtiene métodos de pago disponibles en Perú
