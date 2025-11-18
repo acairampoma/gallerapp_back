@@ -124,6 +124,99 @@ class MercadoPagoService:
                 "error": str(e)
             }
     
+    def crear_preferencia_yape(
+        self,
+        user_id: int,
+        plan_codigo: str,
+        plan_nombre: str,
+        monto: float,
+        user_email: str,
+        user_nombre: str = "Usuario"
+    ) -> Dict[str, Any]:
+        """
+        Crea una preferencia de pago SOLO con Yape habilitado
+        
+        Args:
+            user_id: ID del usuario
+            plan_codigo: Código del plan
+            plan_nombre: Nombre del plan
+            monto: Monto a cobrar
+            user_email: Email del usuario
+            user_nombre: Nombre del usuario
+            
+        Returns:
+            Dict con init_point y preference_id
+        """
+        try:
+            if not self.sdk:
+                raise Exception("Mercado Pago no configurado")
+            
+            # Construir referencia única
+            referencia = f"YAPE_{user_id}_{plan_codigo}_{int(datetime.now().timestamp())}"
+            
+            # Crear preferencia con SOLO Yape habilitado
+            preference_data = {
+                "items": [
+                    {
+                        "title": f"Plan {plan_nombre} - Casta de Gallos",
+                        "description": f"Suscripción {plan_nombre} - Pago con Yape",
+                        "quantity": 1,
+                        "unit_price": float(monto),
+                        "currency_id": "PEN"
+                    }
+                ],
+                "payer": {
+                    "name": user_nombre,
+                    "email": user_email
+                },
+                "payment_methods": {
+                    "excluded_payment_methods": [],
+                    "excluded_payment_types": [],
+                    "installments": 1,
+                    "default_payment_method_id": "yape"  # Yape por defecto
+                },
+                "back_urls": {
+                    "success": f"{os.getenv('FRONTEND_URL', 'https://app-gallera-production.up.railway.app')}/pago-exitoso",
+                    "failure": f"{os.getenv('FRONTEND_URL', 'https://app-gallera-production.up.railway.app')}/pago-fallido",
+                    "pending": f"{os.getenv('FRONTEND_URL', 'https://app-gallera-production.up.railway.app')}/pago-pendiente"
+                },
+                "auto_return": "approved",
+                "notification_url": self.webhook_url,
+                "external_reference": referencia,
+                "statement_descriptor": "CASTA DE GALLOS",
+                "metadata": {
+                    "user_id": user_id,
+                    "plan_codigo": plan_codigo,
+                    "metodo_pago": "yape",
+                    "timestamp": datetime.now().isoformat()
+                },
+                "expires": True,
+                "expiration_date_from": datetime.now().isoformat(),
+                "expiration_date_to": (datetime.now() + timedelta(hours=1)).isoformat()  # Expira en 1 hora
+            }
+            
+            logger.info(f"📱 Creando preferencia de Yape para usuario {user_id}")
+            preference_response = self.sdk.preference().create(preference_data)
+            preference = preference_response["response"]
+            
+            logger.info(f"✅ Preferencia Yape creada: {preference['id']}")
+            
+            return {
+                "success": True,
+                "preference_id": preference["id"],
+                "init_point": preference["init_point"],
+                "referencia": referencia,
+                "monto": monto,
+                "plan_codigo": plan_codigo
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error creando preferencia Yape: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     def obtener_pago(self, payment_id: str) -> Optional[Dict[str, Any]]:
         """
         Obtiene información de un pago
