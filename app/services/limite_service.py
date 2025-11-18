@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 def crear_limite_recurso_completo(recurso_tipo, limite, usado):
     """Crea LimiteRecurso con todos los campos calculados"""
     disponible = max(0, limite - usado)
-    porcentaje_uso = round((usado / limite) * 100, 2) if limite > 0 else 0.0
+    # Limitar porcentaje a máximo 100%
+    porcentaje_uso = min(100.0, round((usado / limite) * 100, 2)) if limite > 0 else 0.0
     
     return LimiteRecurso(
         tipo=recurso_tipo,

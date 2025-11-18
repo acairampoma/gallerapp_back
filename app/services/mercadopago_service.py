@@ -324,13 +324,26 @@ class MercadoPagoService:
         try:
             # Extraer información del webhook
             topic = data.get("topic") or data.get("type")
-            resource_id = data.get("data", {}).get("id") or data.get("id")
+            
+            # Intentar obtener resource_id de múltiples formas
+            resource_id = None
+            if "data" in data and isinstance(data["data"], dict):
+                resource_id = data["data"].get("id")
+            if not resource_id:
+                resource_id = data.get("id")
+            if not resource_id and "data.id" in data:
+                resource_id = data.get("data.id")
             
             logger.info(f"📬 Webhook recibido - Topic: {topic}, ID: {resource_id}")
+            logger.info(f"📬 Data completa: {data}")
+            
+            if not resource_id:
+                logger.error(f"❌ No se pudo extraer resource_id del webhook")
+                return {"success": False, "error": "No se pudo extraer ID del recurso"}
             
             if topic == "payment":
                 # Obtener información completa del pago
-                payment_info = self.obtener_pago(resource_id)
+                payment_info = self.obtener_pago(str(resource_id))
                 
                 if not payment_info:
                     return {"success": False, "error": "No se pudo obtener información del pago"}
