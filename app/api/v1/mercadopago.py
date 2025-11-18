@@ -253,6 +253,8 @@ async def pagar_con_yape(
 @router.post("/webhook")
 async def webhook_mercadopago(
     request: Request,
+    id: Optional[str] = None,
+    topic: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -263,18 +265,38 @@ async def webhook_mercadopago(
     """
     try:
         # Obtener datos del webhook
-        body = await request.json()
-        headers = dict(request.headers)
+        body = {}
+        try:
+            body = await request.json()
+        except:
+            pass  # El body puede estar vacío, los datos vienen en query params
         
-        logger.info(f"📬 Webhook recibido de Mercado Pago: {body}")
+        headers = dict(request.headers)
+        query_params = dict(request.query_params)
+        
+        logger.info(f"📬 Webhook recibido de Mercado Pago")
+        logger.info(f"📬 Query params: {query_params}")
+        logger.info(f"📬 Body: {body}")
         logger.info(f"📬 Headers: {headers}")
+        
+        # Construir data combinando body y query params
+        webhook_data = {
+            **body,
+            **query_params
+        }
+        
+        # Si vienen en query params, agregarlos
+        if id:
+            webhook_data['id'] = id
+        if topic:
+            webhook_data['topic'] = topic
         
         # TODO: Validar firma del webhook (deshabilitado temporalmente para testing)
         # x_signature = headers.get("x-signature")
         # x_request_id = headers.get("x-request-id")
         # 
         # if x_signature and x_request_id:
-        #     data_id = body.get("data", {}).get("id") or body.get("id")
+        #     data_id = webhook_data.get("id")
         #     
         #     if not mercadopago_service.validar_firma_webhook(x_signature, x_request_id, str(data_id)):
         #         logger.error("❌ Firma del webhook inválida - Posible intento de fraude")
@@ -284,7 +306,7 @@ async def webhook_mercadopago(
         #         )
         
         # Procesar webhook
-        resultado = mercadopago_service.procesar_webhook(body)
+        resultado = mercadopago_service.procesar_webhook(webhook_data)
         
         if not resultado.get("success"):
             logger.error(f"❌ Error procesando webhook: {resultado.get('error')}")
