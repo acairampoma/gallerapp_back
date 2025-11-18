@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime, date, timedelta
 import logging
 import json
