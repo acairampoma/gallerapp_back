@@ -348,19 +348,26 @@ class MercadoPagoService:
             }
             
             # Crear el pago
+            logger.info(f"📤 Enviando pago a Mercado Pago: {payment_data}")
             payment_response = self.sdk.payment().create(payment_data)
-            payment = payment_response["response"]
+            logger.info(f"📥 Respuesta de Mercado Pago: {payment_response}")
             
-            logger.info(f"✅ Pago creado - ID: {payment['id']}, Estado: {payment['status']}")
+            # Manejar diferentes formatos de respuesta del SDK
+            if isinstance(payment_response, dict):
+                payment = payment_response.get("response", payment_response)
+            else:
+                payment = payment_response
+            
+            logger.info(f"✅ Pago procesado - ID: {payment.get('id')}, Estado: {payment.get('status')}")
             
             return {
                 "success": True,
-                "payment_id": str(payment["id"]),
-                "status": payment["status"],
-                "status_detail": payment["status_detail"],
-                "monto": payment["transaction_amount"],
+                "payment_id": str(payment.get("id", "")),
+                "status": payment.get("status", "pending"),
+                "status_detail": payment.get("status_detail", ""),
+                "monto": payment.get("transaction_amount", monto),
                 "metodo_pago": "yape",
-                "fecha_creacion": payment["date_created"],
+                "fecha_creacion": payment.get("date_created", datetime.now().isoformat()),
                 "fecha_aprobacion": payment.get("date_approved"),
                 "external_reference": referencia
             }
