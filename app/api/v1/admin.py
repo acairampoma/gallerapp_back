@@ -462,16 +462,72 @@ async def marcar_notificacion_leida(
 # GESTIÓN DE USUARIOS
 # ========================================
 
+@router.get("/usuarios/estadisticas")
+async def obtener_estadisticas_usuarios(
+    admin: User = Depends(verificar_admin),
+    db: Session = Depends(get_db)
+):
+    """📊 Obtener estadísticas de usuarios por tipo de plan"""
+    try:
+        # Contar total de usuarios (excluyendo admin)
+        total_usuarios = db.query(User).filter(User.id != admin.id).count()
+        
+        # Obtener usuarios con sus suscripciones activas
+        usuarios_con_suscripcion = db.query(User, Suscripcion).outerjoin(
+            Suscripcion,
+            and_(
+                User.id == Suscripcion.user_id,
+                Suscripcion.status == 'active',
+                or_(
+                    Suscripcion.fecha_fin.is_(None),
+                    Suscripcion.fecha_fin >= date.today()
+                )
+            )
+        ).filter(User.id != admin.id).all()
+        
+        # Contar por tipo de plan
+        conteo_planes = {
+            'premium': 0,
+            'basico': 0,
+            'profesional': 0,
+            'gratuito': 0
+        }
+        
+        for usuario, suscripcion in usuarios_con_suscripcion:
+            if suscripcion and suscripcion.plan_type:
+                plan_type = suscripcion.plan_type.lower()
+                if plan_type in conteo_planes:
+                    conteo_planes[plan_type] += 1
+                else:
+                    conteo_planes['gratuito'] += 1
+            else:
+                conteo_planes['gratuito'] += 1
+        
+        return {
+            "total": total_usuarios,
+            "premium": conteo_planes['premium'],
+            "basico": conteo_planes['basico'],
+            "profesional": conteo_planes['profesional'],
+            "gratuito": conteo_planes['gratuito']
+        }
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas de usuarios: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno al obtener estadísticas"
+        )
+
 @router.get("/usuarios")
 async def obtener_usuarios_admin(
     buscar: Optional[str] = Query(None, description="Buscar por email"),
     solo_premium: bool = Query(False, description="Solo usuarios premium"),
-    limit: int = Query(50, le=200),
+    limit: int = Query(20, le=50),
     skip: int = Query(0, ge=0),
     admin: User = Depends(verificar_admin),
     db: Session = Depends(get_db)
 ):
-    """👥 Obtener lista de usuarios para administración"""
+    """👥 Obtener lista paginada de usuarios para administración"""
     try:
         query = db.query(User).filter(User.id != admin.id)  # Excluir al admin actual
         
@@ -480,6 +536,9 @@ async def obtener_usuarios_admin(
         
         if solo_premium:
             query = query.filter(User.is_premium == True)
+        
+        # Contar total de registros que coinciden con los filtros
+        total_registros = query.count()
         
         usuarios = query.order_by(desc(User.created_at)).offset(skip).limit(limit).all()
         
@@ -526,7 +585,14 @@ async def obtener_usuarios_admin(
             }
             resultado.append(usuario_info)
         
-        return resultado
+        # Retornar con metadata de paginación
+        return {
+            "usuarios": resultado,
+            "total": total_registros,
+            "skip": skip,
+            "limit": limit,
+            "paginas": (total_registros + limit - 1) // limit  # Redondear hacia arriba
+        }
         
     except Exception as e:
         logger.error(f"Error obteniendo usuarios: {e}")
