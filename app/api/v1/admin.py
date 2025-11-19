@@ -495,9 +495,14 @@ async def obtener_estadisticas_usuarios(
         
         for usuario, suscripcion in usuarios_con_suscripcion:
             if suscripcion and suscripcion.plan_type:
-                plan_type = suscripcion.plan_type.lower()
-                if plan_type in conteo_planes:
-                    conteo_planes[plan_type] += 1
+                plan_type = suscripcion.plan_type.lower().strip()
+                # Normalizar variaciones de nombres
+                if plan_type in ['premium']:
+                    conteo_planes['premium'] += 1
+                elif plan_type in ['basico', 'básico', 'basic']:
+                    conteo_planes['basico'] += 1
+                elif plan_type in ['profesional', 'professional', 'pro']:
+                    conteo_planes['profesional'] += 1
                 else:
                     conteo_planes['gratuito'] += 1
             else:
@@ -522,6 +527,7 @@ async def obtener_estadisticas_usuarios(
 async def obtener_usuarios_admin(
     buscar: Optional[str] = Query(None, description="Buscar por email"),
     solo_premium: bool = Query(False, description="Solo usuarios premium"),
+    plan_type: Optional[str] = Query(None, description="Filtrar por tipo de plan: premium, basico, profesional, gratuito"),
     limit: int = Query(20, le=50),
     skip: int = Query(0, ge=0),
     admin: User = Depends(verificar_admin),
@@ -529,7 +535,42 @@ async def obtener_usuarios_admin(
 ):
     """👥 Obtener lista paginada de usuarios para administración"""
     try:
-        query = db.query(User).filter(User.id != admin.id)  # Excluir al admin actual
+        # Si hay filtro por plan_type, necesitamos hacer join con suscripciones
+        if plan_type:
+            if plan_type.lower() == 'gratuito':
+                # Usuarios sin suscripción activa
+                query = db.query(User).outerjoin(
+                    Suscripcion,
+                    and_(
+                        User.id == Suscripcion.user_id,
+                        Suscripcion.status == 'active',
+                        or_(
+                            Suscripcion.fecha_fin.is_(None),
+                            Suscripcion.fecha_fin >= date.today()
+                        )
+                    )
+                ).filter(
+                    User.id != admin.id,
+                    Suscripcion.id.is_(None)
+                )
+            else:
+                # Usuarios con suscripción activa del tipo especificado
+                query = db.query(User).join(
+                    Suscripcion,
+                    and_(
+                        User.id == Suscripcion.user_id,
+                        Suscripcion.status == 'active',
+                        or_(
+                            Suscripcion.fecha_fin.is_(None),
+                            Suscripcion.fecha_fin >= date.today()
+                        )
+                    )
+                ).filter(
+                    User.id != admin.id,
+                    Suscripcion.plan_type.ilike(f"%{plan_type}%")
+                )
+        else:
+            query = db.query(User).filter(User.id != admin.id)
         
         if buscar:
             query = query.filter(User.email.ilike(f"%{buscar}%"))
