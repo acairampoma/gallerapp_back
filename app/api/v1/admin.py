@@ -466,7 +466,7 @@ async def marcar_notificacion_leida(
 async def obtener_usuarios_admin(
     buscar: Optional[str] = Query(None, description="Buscar por email"),
     solo_premium: bool = Query(False, description="Solo usuarios premium"),
-    limit: int = Query(50, le=100),
+    limit: int = Query(50, le=200),
     skip: int = Query(0, ge=0),
     admin: User = Depends(verificar_admin),
     db: Session = Depends(get_db)
