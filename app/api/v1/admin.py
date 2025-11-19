@@ -485,25 +485,44 @@ async def obtener_usuarios_admin(
         
         resultado = []
         for usuario in usuarios:
-            # Obtener suscripción actual
+            # Obtener suscripción actual activa
             suscripcion = db.query(Suscripcion).filter(
                 and_(
                     Suscripcion.user_id == usuario.id,
-                    Suscripcion.status == 'active'
+                    Suscripcion.status == 'active',
+                    or_(
+                        Suscripcion.fecha_fin.is_(None),
+                        Suscripcion.fecha_fin >= date.today()
+                    )
                 )
             ).first()
+            
+            # Determinar el tipo de plan
+            plan_type = None
+            if suscripcion:
+                plan_type = suscripcion.plan_type
+            
+            # Si no tiene suscripción activa, es gratuito
+            if not plan_type:
+                plan_type = 'gratuito'
             
             usuario_info = {
                 "id": usuario.id,
                 "email": usuario.email,
                 "is_active": usuario.is_active,
                 "is_premium": usuario.is_premium,
+                "plan_type": plan_type,  # ← NUEVO CAMPO
                 "created_at": usuario.created_at.isoformat() if usuario.created_at else None,
                 "last_login": usuario.last_login.isoformat() if usuario.last_login else None,
                 "suscripcion": {
-                    "plan": suscripcion.plan_name if suscripcion else "Sin plan",
+                    "plan": suscripcion.plan_name if suscripcion else "Plan Gratuito",
+                    "plan_type": plan_type,  # ← NUEVO CAMPO
                     "fecha_fin": suscripcion.fecha_fin.isoformat() if suscripcion and suscripcion.fecha_fin else None
-                } if suscripcion else None
+                } if suscripcion else {
+                    "plan": "Plan Gratuito",
+                    "plan_type": "gratuito",
+                    "fecha_fin": None
+                }
             }
             resultado.append(usuario_info)
         
